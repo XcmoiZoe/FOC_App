@@ -1,194 +1,225 @@
 import 'package:flutter/material.dart';
 
-class HomePage extends StatefulWidget {
+class HomePage extends StatelessWidget {
   const HomePage({super.key});
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-
-  int points = 1250;
-  int level = 3;
-
-  final List<Map<String, dynamic>> activities = [
-    {"title": "Ad Viewed 1000x", "points": "+200"},
-    {"title": "Posted New Ad", "points": "+150"},
-    {"title": "Daily Login Bonus", "points": "+50"},
-  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Yes Ads Rewards'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {},
-          )
-        ],
+        title: const Text("Yes Ads Rewards"),
+        backgroundColor: const Color(0xFF6A1B9A),
+        elevation: 0,
       ),
-
       body: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // 🔥 POINTS CARD
+            // 🔥 HEADER (Points Card)
             Container(
               width: double.infinity,
-              margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFF6A1B9A),
+                    Color(0xFFFF6F00),
+                  ],
+                ),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(25),
+                  bottomRight: Radius.circular(25),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Total Points",
+                children: const [
+                  Text(
+                    "Your Points",
                     style: TextStyle(color: Colors.white70),
                   ),
-                  const SizedBox(height: 10),
+                  SizedBox(height: 5),
                   Text(
-                    points.toString(),
-                    style: const TextStyle(
+                    "1,250",
+                    style: TextStyle(
+                      color: Colors.white,
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Level $level",
-                    style: const TextStyle(color: Colors.white),
                   ),
                 ],
               ),
             ),
 
-            // 📊 PROGRESS BAR
+            const SizedBox(height: 20),
+
+            // 📊 STATS
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: const [
+                  StatCard(title: "Ads Watched", value: "35"),
+                  StatCard(title: "Earned", value: "₱120"),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 🎁 ACTION BUTTONS
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ActionButton(
+                      title: "Watch Ads",
+                      icon: Icons.play_circle_fill,
+                      color: Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ActionButton(
+                      title: "Redeem",
+                      icon: Icons.card_giftcard,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 🛍️ FEATURED REWARDS
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
-                  Text("Progress to next level"),
-                  SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: 0.6, // dynamic later
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // 🎁 REWARDS SECTION
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                "Rewards",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            // Rewards Cards
-            SizedBox(
-              height: 120,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  rewardCard("₱50 GCash", "1000 pts"),
-                  rewardCard("₱100 Voucher", "2000 pts"),
-                  rewardCard("Free Ad Boost", "1500 pts"),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // 📜 ACTIVITY
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                "Recent Activity",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: activities.length,
-              itemBuilder: (context, index) {
-                final item = activities[index];
-
-                return ListTile(
-                  leading: const Icon(Icons.star, color: Colors.orange),
-                  title: Text(item['title']),
-                  trailing: Text(
-                    item['points'],
-                    style: const TextStyle(
-                      color: Colors.green,
+                  Text(
+                    "Featured Rewards",
+                    style: TextStyle(
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                );
-              },
+                  SizedBox(height: 10),
+
+                  RewardCard(
+                    title: "Atomy Toothpaste",
+                    points: "300 pts",
+                  ),
+                  RewardCard(
+                    title: "Atomy Vitamin C",
+                    points: "500 pts",
+                  ),
+                ],
+              ),
             ),
 
-            const SizedBox(height: 80),
+            const SizedBox(height: 30),
           ],
         ),
       ),
-
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.red,
-        onPressed: () {},
-        child: const Icon(Icons.add),
-      ),
     );
   }
+}
 
-  // 🔹 REWARD CARD WIDGET
-  Widget rewardCard(String title, String cost) {
+class StatCard extends StatelessWidget {
+  final String title;
+  final String value;
+
+  const StatCard({super.key, required this.title, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      width: 150,
-      margin: const EdgeInsets.only(left: 16),
-      padding: const EdgeInsets.all(12),
+      width: 160,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
-          BoxShadow(blurRadius: 5, color: Colors.black12)
+          BoxShadow(color: Colors.black12, blurRadius: 5),
         ],
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.card_giftcard, color: Colors.red),
-          const SizedBox(height: 10),
-          Text(title, textAlign: TextAlign.center),
+          Text(title, style: const TextStyle(color: Colors.grey)),
           const SizedBox(height: 5),
           Text(
-            cost,
-            style: const TextStyle(color: Colors.grey),
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class ActionButton extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color color;
+
+  const ActionButton({
+    super.key,
+    required this.title,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      onPressed: () {},
+      icon: Icon(icon),
+      label: Text(title),
+    );
+  }
+}
+
+class RewardCard extends StatelessWidget {
+  final String title;
+  final String points;
+
+  const RewardCard({
+    super.key,
+    required this.title,
+    required this.points,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        title: Text(title),
+        subtitle: Text(points),
+        trailing: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange,
+          ),
+          onPressed: () {},
+          child: const Text("Redeem"),
+        ),
       ),
     );
   }

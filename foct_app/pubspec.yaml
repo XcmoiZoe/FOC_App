@@ -37,6 +37,7 @@ dependencies:
   webview_flutter: ^4.13.1
   webview_flutter_android: ^4.11.0
   webview_windows: ^0.4.0
+  google_maps_flutter: ^2.17.0
 
 dev_dependencies:
   flutter_test:

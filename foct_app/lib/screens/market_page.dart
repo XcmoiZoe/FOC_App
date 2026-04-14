@@ -10,6 +10,8 @@ class MarketPage extends StatefulWidget {
 
 class _MarketPageState extends State<MarketPage> {
   late final WebViewController controller;
+  bool isLoading = true;
+  String? errorMessage;
 
   @override
   void initState() {
@@ -17,14 +19,51 @@ class _MarketPageState extends State<MarketPage> {
 
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadRequest(Uri.parse('https://artbiglobalph.com/'));
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (url) {
+            setState(() {
+              isLoading = true;
+              errorMessage = null;
+            });
+          },
+          onPageFinished: (url) {
+            setState(() {
+              isLoading = false;
+            });
+          },
+          onWebResourceError: (error) {
+            setState(() {
+              isLoading = false;
+              errorMessage = error.description;
+            });
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse('https://ph.atomy.com/main'));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Market")),
-      body: WebViewWidget(controller: controller),
+      body: Stack(
+        children: [
+          WebViewWidget(controller: controller),
+
+          if (isLoading)
+            const Center(child: CircularProgressIndicator()),
+
+          if (errorMessage != null)
+            Center(
+              child: Text(
+                "Error: $errorMessage",
+                style: const TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
