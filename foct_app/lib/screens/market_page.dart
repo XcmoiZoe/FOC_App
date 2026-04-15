@@ -40,7 +40,7 @@ class _MarketPageState extends State<MarketPage> {
           },
         ),
       )
-      ..loadRequest(Uri.parse('https://ph.atomy.com/main'));
+      ..loadRequest(Uri.parse('https://artbiglobalph.com/atomy'));
   }
 
   @override
