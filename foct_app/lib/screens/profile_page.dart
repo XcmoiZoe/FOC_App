@@ -1,4 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../screens/login_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -20,7 +25,7 @@ class ProfilePage extends StatelessWidget {
         child: Column(
           children: [
 
-            // 🔥 HEADER (USER INFO)
+            // 🔥 HEADER
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -34,76 +39,32 @@ class ProfilePage extends StatelessWidget {
                 ),
               ),
               child: Column(
-                children: [
-
-                  // 👤 PROFILE IMAGE
+                children: const [
                   CircleAvatar(
                     radius: 45,
                     backgroundColor: Colors.white,
-                    child: const Icon(Icons.person, size: 50, color: primaryPurple),
+                    child: Icon(Icons.person, size: 50, color: Color(0xFF6A1B9A)),
                   ),
-
-                  const SizedBox(height: 10),
-
-                  // 🧑 NAME
-                  const Text(
-                    "Juan Dela Cruz",
+                  SizedBox(height: 10),
+                  Text(
+                    "User",
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
-                  const SizedBox(height: 5),
-
-                  // 📧 EMAIL
-                  const Text(
-                    "user@email.com",
+                  SizedBox(height: 5),
+                  Text(
+                    "Logged User",
                     style: TextStyle(color: Colors.white70),
                   ),
-
-                  const SizedBox(height: 15),
-
-                  // 💎 POINTS
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      "Points: 1,250",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
 
             const SizedBox(height: 20),
 
-            // 📊 STATS CARDS
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  ProfileStat(title: "Ads Watched", value: "35"),
-                  ProfileStat(title: "Total Earned", value: "₱120"),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // ⚙️ MENU OPTIONS
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
@@ -125,43 +86,6 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-// 📊 STATS COMPONENT
-class ProfileStat extends StatelessWidget {
-  final String title;
-  final String value;
-
-  const ProfileStat({super.key, required this.title, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 160,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 5),
-        ],
-      ),
-      child: Column(
-        children: [
-          Text(title, style: const TextStyle(color: Colors.grey)),
-          const SizedBox(height: 5),
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ⚙️ MENU ITEM
 class ProfileMenu extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -171,6 +95,33 @@ class ProfileMenu extends StatelessWidget {
     required this.title,
     required this.icon,
   });
+
+  Future<void> logout(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    try {
+      await http.post(
+        Uri.parse("https://artbiglobalph.com/api/logout.php"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      );
+    } catch (_) {
+      // ignore error, still logout locally
+    }
+
+    await prefs.clear();
+
+    if (!context.mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -184,9 +135,13 @@ class ProfileMenu extends StatelessWidget {
         title: Text(title),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("$title clicked")),
-          );
+          if (title == "Logout") {
+            logout(context);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("$title clicked")),
+            );
+          }
         },
       ),
     );
