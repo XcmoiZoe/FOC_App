@@ -1,4 +1,4 @@
-import 'dart:html' as html;
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
 
 class MarketPage extends StatefulWidget {
@@ -14,8 +14,17 @@ class _MarketPageState extends State<MarketPage> {
   void initState() {
     super.initState();
 
-    Future.microtask(() {
-      html.window.location.href = "https://artbiglobalph.com/atomy";
+    Future.microtask(() async {
+      final Uri url = Uri.parse(
+        "https://artbiglobalph.com/atomy",
+      );
+
+      if (!await launchUrl(
+        url,
+        mode: LaunchMode.externalApplication,
+      )) {
+        throw Exception('Could not launch $url');
+      }
     });
   }
 
