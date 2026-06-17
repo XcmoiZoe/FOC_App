@@ -10,7 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  google_fonts: ^6.2.1
+  intl: ^0.20.2
   cupertino_icons: ^1.0.8
   webview_flutter: ^4.13.1
   webview_flutter_android: ^4.11.0

@@ -1,127 +1,442 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final int totalPoints = 2475;
+    final int loginPoints = 25;
+    final int nextReward = 5000;
+    final double progress = totalPoints / nextReward;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: const Text("Yes Ads Rewards"),
-        backgroundColor: const Color(0xFF6A1B9A),
-        elevation: 0,
+      backgroundColor: const Color(0xFFF5F5F7),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await Future.delayed(
+              const Duration(seconds: 1),
+            );
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+
+                /// HEADER
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(.05),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      )
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+
+                      Row(
+                        children: [
+
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Hi, Emman! 👋",
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 24,
+                                    fontWeight:
+                                        FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  "Welcome back!",
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          Stack(
+                            children: [
+
+                              IconButton(
+                                onPressed: () {},
+                                icon: const Icon(
+                                  Icons.notifications_none,
+                                  size: 28,
+                                ),
+                              ),
+
+                              Positioned(
+                                top: 10,
+                                right: 10,
+                                child: Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration:
+                                      const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      /// LOGIN REWARD CARD
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6F2DBD),
+                          borderRadius:
+                              BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+
+                                  Text(
+                                    "🎉 You earned",
+                                    style:
+                                        GoogleFonts.poppins(
+                                      color:
+                                          Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+
+                                  const SizedBox(
+                                    height: 8,
+                                  ),
+
+                                  Text(
+                                    "+$loginPoints",
+                                    style:
+                                        GoogleFonts.poppins(
+                                      color:
+                                          Colors.white,
+                                      fontSize: 52,
+                                      fontWeight:
+                                          FontWeight.bold,
+                                    ),
+                                  ),
+
+                                  Text(
+                                    "LOGIN POINTS",
+                                    style:
+                                        GoogleFonts.poppins(
+                                      color:
+                                          Colors.white,
+                                      fontWeight:
+                                          FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            Container(
+                              width: 90,
+                              height: 90,
+                              decoration:
+                                  BoxDecoration(
+                                color: Colors.orange,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons
+                                    .monetization_on,
+                                color: Colors.white,
+                                size: 50,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      Row(
+                        children: [
+
+                          Text(
+                            "Total Points",
+                            style:
+                                GoogleFonts.poppins(
+                              fontWeight:
+                                  FontWeight.w600,
+                            ),
+                          ),
+
+                          const Spacer(),
+
+                          const Icon(
+                            Icons.monetization_on,
+                            color: Colors.orange,
+                          ),
+
+                          const SizedBox(width: 4),
+
+                          Text(
+                            NumberFormat('#,###')
+                                .format(
+                              totalPoints,
+                            ),
+                            style:
+                                GoogleFonts.poppins(
+                              color:
+                                  Colors.deepOrange,
+                              fontWeight:
+                                  FontWeight.bold,
+                              fontSize: 34,
+                            ),
+                          ),
+
+                          Text(
+                            " PTS",
+                            style:
+                                GoogleFonts.poppins(
+                              color:
+                                  Colors.deepOrange,
+                              fontWeight:
+                                  FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                /// PROGRESS
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius:
+                        BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black
+                            .withOpacity(.04),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+
+                      Row(
+                        mainAxisAlignment:
+                            MainAxisAlignment
+                                .spaceBetween,
+                        children: [
+                          Text(
+                            "$totalPoints / $nextReward PTS",
+                            style:
+                                GoogleFonts.poppins(
+                              fontWeight:
+                                  FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            "${(progress * 100).toInt()}%",
+                            style:
+                                GoogleFonts.poppins(
+                              fontWeight:
+                                  FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      SizedBox(
+                        height: 12,
+                        child: ClipRRect(
+                          borderRadius:
+                              BorderRadius.circular(
+                                  30),
+                          child:
+                              LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor:
+                                Colors.grey.shade300,
+                            valueColor:
+                                const AlwaysStoppedAnimation(
+                              Color(0xFF6F2DBD),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      Text(
+                        "${nextReward - totalPoints} PTS to next reward",
+                        style:
+                            GoogleFonts.poppins(
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                /// REWARDS
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius:
+                        BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black
+                            .withOpacity(.04),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+
+                      Row(
+                        children: [
+
+                          Expanded(
+                            child: Text(
+                              "Rewards You Can Redeem",
+                              style:
+                                  GoogleFonts.poppins(
+                                fontWeight:
+                                    FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+
+                          TextButton(
+                            onPressed: () {},
+                            child: const Text(
+                              "View All",
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      rewardTile(
+                        Icons.local_cafe,
+                        Colors.green,
+                        "Free Coffee",
+                        "1,000 PTS",
+                      ),
+
+                      rewardTile(
+                        Icons.phone_android,
+                        Colors.deepPurple,
+                        "Mobile Load ₱50",
+                        "2,500 PTS",
+                      ),
+
+                      rewardTile(
+                        Icons.phone_android,
+                        Colors.deepPurple,
+                        "Mobile Load ₱100",
+                        "5,000 PTS",
+                      ),
+
+                      rewardTile(
+                        Icons.shopping_bag,
+                        Colors.orange,
+                        "Shopping Voucher ₱200",
+                        "10,000 PTS",
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
+    );
+  }
+
+  Widget rewardTile(
+    IconData icon,
+    Color color,
+    String title,
+    String points,
+  ) {
+    return InkWell(
+      onTap: () {},
+      child: Container(
+        margin: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: Colors.grey.shade200,
+          ),
+          borderRadius:
+              BorderRadius.circular(14),
+        ),
+        child: Row(
           children: [
 
-            // 🔥 HEADER (Points Card)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF6A1B9A),
-                    Color(0xFFFF6F00),
-                  ],
+            Icon(
+              icon,
+              color: color,
+            ),
+
+            const SizedBox(width: 12),
+
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontWeight:
+                      FontWeight.w500,
                 ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(25),
-                  bottomRight: Radius.circular(25),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    "Your Points",
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                  SizedBox(height: 5),
-                  Text(
-                    "1,250",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
               ),
             ),
 
-            const SizedBox(height: 20),
-
-            // 📊 STATS
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  StatCard(title: "Ads Watched", value: "35"),
-                  StatCard(title: "Earned", value: "₱120"),
-                ],
+            Text(
+              points,
+              style: GoogleFonts.poppins(
+                color: color,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            // 🎁 ACTION BUTTONS
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ActionButton(
-                      title: "Watch Ads",
-                      icon: Icons.play_circle_fill,
-                      color: Colors.orange,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ActionButton(
-                      title: "Redeem",
-                      icon: Icons.card_giftcard,
-                      color: Colors.deepPurple,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // 🛍️ FEATURED REWARDS
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    "Featured Rewards",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-
-                  RewardCard(
-                    title: "Atomy Toothpaste",
-                    points: "300 pts",
-                  ),
-                  RewardCard(
-                    title: "Atomy Vitamin C",
-                    points: "500 pts",
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 30),
           ],
         ),
       ),
@@ -129,98 +444,3 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-
-  const StatCard({super.key, required this.title, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 160,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 5),
-        ],
-      ),
-      child: Column(
-        children: [
-          Text(title, style: const TextStyle(color: Colors.grey)),
-          const SizedBox(height: 5),
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class ActionButton extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color color;
-
-  const ActionButton({
-    super.key,
-    required this.title,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-      onPressed: () {},
-      icon: Icon(icon),
-      label: Text(title),
-    );
-  }
-}
-
-class RewardCard extends StatelessWidget {
-  final String title;
-  final String points;
-
-  const RewardCard({
-    super.key,
-    required this.title,
-    required this.points,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ListTile(
-        title: Text(title),
-        subtitle: Text(points),
-        trailing: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange,
-          ),
-          onPressed: () {},
-          child: const Text("Redeem"),
-        ),
-      ),
-    );
-  }
-}
