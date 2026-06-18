@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-
-import '../navigation/main_navigation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/app_background.dart';
-import 'signup_page.dart'; // ✅ ADD THIS
+import '../navigation/main_navigation.dart';
+import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -15,10 +14,13 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController identifierController = TextEditingController();
-  final TextEditingController codeController = TextEditingController();
+  final TextEditingController identifierController =
+      TextEditingController();
+  final TextEditingController codeController =
+      TextEditingController();
 
   bool isLoading = false;
+  bool obscurePassword = true;
   String? error;
 
   Future<void> login() async {
@@ -40,7 +42,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final res = await http.post(
-        Uri.parse("https://artbiglobalph.com/api/sign_in.php"), // 🔥 CHANGE THIS
+        Uri.parse("https://artbiglobalph.com/api/sign_in.php"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "member_code": memberCode,
@@ -48,10 +50,10 @@ class _LoginPageState extends State<LoginPage> {
         }),
       );
 
-      // ✅ Handle non-200 response
       if (res.statusCode != 200) {
         setState(() {
-          error = "Server error (${res.statusCode})";
+          error = "Server Error (${res.statusCode})";
+          isLoading = false;
         });
         return;
       }
@@ -68,18 +70,20 @@ class _LoginPageState extends State<LoginPage> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainNavigation()),
+          MaterialPageRoute(
+            builder: (_) => const MainNavigation(),
+          ),
         );
       } else {
         setState(() {
-          error = data["message"] ?? "Login failed";
+          error = data["message"] ?? "Login Failed";
         });
       }
     } catch (e) {
-  setState(() {
-    error = "Error: $e";
-  });
-}
+      setState(() {
+        error = "Error: $e";
+      });
+    }
 
     setState(() {
       isLoading = false;
@@ -93,149 +97,279 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  Widget buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool obscure = false,
+    Widget? suffix,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey.shade300,
+        ),
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: obscure,
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 18),
+          prefixIcon: Icon(
+            icon,
+            color: Colors.grey,
+          ),
+          suffixIcon: suffix,
+          hintText: hint,
+          hintStyle: TextStyle(
+            color: Colors.grey.shade500,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: AppBackground(
-        child: Center(
+        child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Container(
-              width: 360,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.95),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 25,
-                    offset: const Offset(0, 12),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+            children: [
+              const SizedBox(height: 15),
+
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              const Text(
+                "Login",
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              const Text(
+                "Welcome back! Please login\n to continue.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.black54,
+                  fontSize: 15,
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              buildTextField(
+                controller: identifierController,
+                hint: "Member Code",
+                icon: Icons.person_outline,
+              ),
+
+              const SizedBox(height: 16),
+
+              buildTextField(
+                controller: codeController,
+                hint: "Password",
+                icon: Icons.lock_outline,
+                obscure: obscurePassword,
+                suffix: IconButton(
+                  icon: Icon(
+                    obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.grey,
                   ),
+                  onPressed: () {
+                    setState(() {
+                      obscurePassword = !obscurePassword;
+                    });
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {},
+                  child: const Text(
+                    "Forgot Password?",
+                    style: TextStyle(
+                      color: Color(0xFF7B2CBF),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+
+              if (error != null)
+                Padding(
+                  padding:
+                      const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    error!,
+                    style: const TextStyle(
+                      color: Colors.red,
+                    ),
+                  ),
+                ),
+
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed:
+                      isLoading ? null : login,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        const Color(0xFF7B2CBF),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: isLoading
+                      ? const CircularProgressIndicator(
+                          color: Colors.white,
+                        )
+                      : const Text(
+                          "LOGIN",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight:
+                                FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              Row(
+                children: const [
+                  Expanded(child: Divider()),
+                  Padding(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 10),
+                    child: Text("or"),
+                  ),
+                  Expanded(child: Divider()),
                 ],
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset(
-                    "assets/logo.png",
-                    height: 60,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.lock, size: 60),
+
+              const SizedBox(height: 10),
+
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: Image.network(
+                    "https://cdn-icons-png.flaticon.com/512/2991/2991148.png",
+                    height: 22,
                   ),
-
-                  const SizedBox(height: 15),
-
-                  const Text(
-                    "Welcome Back",
+                  label: const Text(
+                    "Continue with Google",
                     style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                   ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: Colors.grey.shade300,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
 
-                  const SizedBox(height: 5),
+              const SizedBox(height: 12),
 
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.facebook,
+                    color: Colors.blue,
+                  ),
+                  label: const Text(
+                    "Continue with Facebook",
+                    style: TextStyle(
+                      color: Colors.black87,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: Colors.grey.shade300,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              Row(
+                mainAxisAlignment:
+                    MainAxisAlignment.center,
+                children: [
                   const Text(
-                    "Login using your Member Code",
-                    style: TextStyle(color: Colors.grey),
+                    "Don't have an account? ",
                   ),
-
-                  const SizedBox(height: 25),
-
-                  TextField(
-                    controller: identifierController,
-                    decoration: InputDecoration(
-                      hintText: "Member Code (e.g. A7X9Q2)",
-                      prefixIcon: const Icon(Icons.badge_outlined),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  TextField(
-                    controller: codeController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      hintText: "Unique Code",
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  if (error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Text(
-                        error!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFFFF6F00),
-                            Color(0xFF6A1B9A),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: isLoading ? null : login,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text("Login"),
-                      ),
-                    ),
-                  ),
-
-                  // 🔥 NEW SIGNUP BUTTON
-                  const SizedBox(height: 12),
-
-                  TextButton(
-                    onPressed: () {
+                  GestureDetector(
+                    onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const SignupPage(),
+                          builder: (_) =>
+                              const SignupPage(),
                         ),
                       );
                     },
-                    child: const Text("Don't have an account? Sign Up"),
+                    child: const Text(
+                      "Sign Up",
+                      style: TextStyle(
+                        color: Color(0xFF7B2CBF),
+                        fontWeight:
+                            FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
-          ),
+
+              const SizedBox(height: 150),
+            ],
+          ),),
         ),
       ),
     );
