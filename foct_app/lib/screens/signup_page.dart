@@ -60,7 +60,7 @@ class _SignupPageState extends State<SignupPage> {
       final res = await http
           .post(
             Uri.parse(
-              "https://artbiglobalph.com/api/sign_up.php",
+              "http://54.255.150.15/mobile-api/signup",
             ),
             headers: {
               "Content-Type": "application/json",
