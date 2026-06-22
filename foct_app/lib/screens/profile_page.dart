@@ -1,12 +1,55 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/user_profile_service.dart';
 import '../screens/login_page.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  String name = 'User';
+  String memberCode = '';
+  String email = '';
+  String phone = '';
+  int totalPoints = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    loadProfile();
+  }
+
+  Future<void> loadProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedMemberCode = prefs.getString('member_code') ?? '';
+
+    if (storedMemberCode.isNotEmpty) {
+      try {
+        await UserProfileService.fetchAndSaveProfile(
+          memberCode: storedMemberCode,
+        );
+        await prefs.reload();
+      } catch (_) {
+        // Keep cached profile data if the network request fails.
+      }
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      name = prefs.getString('name') ?? 'User';
+      memberCode = prefs.getString('member_code') ?? '';
+      email = prefs.getString('email') ?? '';
+      phone = prefs.getString('phone') ?? '';
+      totalPoints = prefs.getInt('total_points') ?? 0;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,25 +82,25 @@ class ProfilePage extends StatelessWidget {
                 ),
               ),
               child: Column(
-                children: const [
-                  CircleAvatar(
+                children: [
+                  const CircleAvatar(
                     radius: 45,
                     backgroundColor: Colors.white,
                     child: Icon(Icons.person, size: 50, color: Color(0xFF6A1B9A)),
                   ),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
                   Text(
-                    "User",
-                    style: TextStyle(
+                    name,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 5),
+                  const SizedBox(height: 5),
                   Text(
-                    "Logged User",
-                    style: TextStyle(color: Colors.white70),
+                    memberCode.isEmpty ? "Logged User" : memberCode,
+                    style: const TextStyle(color: Colors.white70),
                   ),
                 ],
               ),
@@ -68,12 +111,15 @@ class ProfilePage extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
-                children: const [
-                  ProfileMenu(title: "Edit Profile", icon: Icons.edit),
-                  ProfileMenu(title: "Transaction History", icon: Icons.history),
-                  ProfileMenu(title: "Notifications", icon: Icons.notifications),
-                  ProfileMenu(title: "Settings", icon: Icons.settings),
-                  ProfileMenu(title: "Logout", icon: Icons.logout),
+                children: [
+                  ProfileInfo(title: "Email", value: email),
+                  ProfileInfo(title: "Phone", value: phone),
+                  ProfileInfo(title: "Total Points", value: totalPoints.toString()),
+                  const ProfileMenu(title: "Edit Profile", icon: Icons.edit),
+                  const ProfileMenu(title: "Transaction History", icon: Icons.history),
+                  const ProfileMenu(title: "Notifications", icon: Icons.notifications),
+                  const ProfileMenu(title: "Settings", icon: Icons.settings),
+                  const ProfileMenu(title: "Logout", icon: Icons.logout),
                 ],
               ),
             ),
@@ -81,6 +127,31 @@ class ProfilePage extends StatelessWidget {
             const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class ProfileInfo extends StatelessWidget {
+  final String title;
+  final String value;
+
+  const ProfileInfo({
+    super.key,
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        title: Text(title),
+        subtitle: Text(value.isEmpty ? '-' : value),
       ),
     );
   }

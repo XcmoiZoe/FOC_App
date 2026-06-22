@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/app_background.dart';
 import '../navigation/main_navigation.dart';
+import '../services/user_profile_service.dart';
+import 'forgot_password_page.dart';
 import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -60,61 +62,38 @@ class _LoginPageState extends State<LoginPage> {
 
       final data = jsonDecode(res.body);
 
-    if (data["success"] == true) {
-  final prefs = await SharedPreferences.getInstance();
+      if (data["success"] == true) {
+        final prefs = await SharedPreferences.getInstance();
+        final loginUser = data["user"] is Map
+            ? Map<String, dynamic>.from(data["user"] as Map)
+            : null;
+        final profileMemberCode =
+            loginUser?["member_code"]?.toString() ?? memberCode;
 
-  await prefs.setString(
-    "token",
-    data["token"] ?? "",
-  );
+        await prefs.setString("token", data["token"] ?? "");
+        await prefs.setString("member_code", profileMemberCode);
 
-  await prefs.setString(
-    "name",
-    data["user"]?["name"] ?? "",
-  );
+        final profileLoaded = await UserProfileService.fetchAndSaveProfile(
+          memberCode: profileMemberCode,
+        );
 
-  await prefs.setString(
-    "email",
-    data["user"]?["email"] ?? "",
-  );
+        if (!profileLoaded && loginUser != null) {
+          await UserProfileService.saveUser(
+            loginUser,
+            prefs: prefs,
+            fallbackMemberCode: profileMemberCode,
+          );
+        }
 
-  await prefs.setString(
-    "phone",
-    data["user"]?["phone"] ?? "",
-  );
+        if (!mounted) return;
 
-  await prefs.setString(
-    "address",
-    data["user"]?["address"] ?? "",
-  );
-
-  await prefs.setString(
-    "member_code",
-    data["user"]?["member_code"] ?? "",
-  );
-
-  await prefs.setInt(
-    "total_points",
-    data["user"]?["total_points"] ?? 0,
-  );
-
-  print(
-    "NAME: ${prefs.getString("name")}"
-  );
-
-  print(
-    "MEMBER CODE: ${prefs.getString("member_code")}"
-  );
-
-  if (!mounted) return;
-
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const MainNavigation(),
-    ),
-  );
-} else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const MainNavigation(),
+          ),
+        );
+      } else {
         setState(() {
           error = data["message"] ?? "Login Failed";
         });
@@ -250,7 +229,19 @@ class _LoginPageState extends State<LoginPage> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {},
+                  onPressed: () async {
+                    final result = await Navigator.push<Map<String, String>>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ForgotPasswordPage(),
+                      ),
+                    );
+
+                    final memberCode = result?["member_code"];
+                    if (memberCode != null && memberCode.isNotEmpty) {
+                      identifierController.text = memberCode;
+                    }
+                  },
                   child: const Text(
                     "Forgot Password?",
                     style: TextStyle(

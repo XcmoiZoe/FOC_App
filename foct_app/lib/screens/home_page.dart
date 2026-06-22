@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:http/http.dart' as http;
+import '../services/user_profile_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -104,10 +105,10 @@ class _HomePageState extends State<HomePage>
                             targetTurns,
                             curve: Curves.decelerate,
                           ).whenComplete(() async {
-                            // Persist server response locally
+                            // Persist server response locally (but don't store earned_points—trust server total_points)
                             final prefs = await SharedPreferences.getInstance();
-                            await prefs.setInt('earned_points', reward);
                             await prefs.setInt('total_points', newTotal);
+                            await prefs.remove('earned_points'); // Don't store; only trust server
                             await prefs.setString('last_login_at', DateTime.now().toIso8601String());
 
                             setState(() {
@@ -176,58 +177,51 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> loadUser() async {
-    final prefs =
-        await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
+
+    final storedMemberCode = prefs.getString('member_code') ?? '';
+    if (storedMemberCode.isNotEmpty) {
+      try {
+        await UserProfileService.fetchAndSaveProfile(
+          memberCode: storedMemberCode,
+        );
+        await prefs.reload();
+      } catch (e) {
+        // ignore network errors and fallback to local values
+        print('loadUser: profile fetch failed: $e');
+      }
+    }
 
     setState(() {
-      userName =
-          prefs.getString("name") ?? "Member";
-
-      memberCode =
-          prefs.getString("member_code") ?? "";
-
-      totalPoints =
-          prefs.getInt("total_points") ?? 0;
-      earnedPoints =
-          prefs.getInt("earned_points") ?? 0;
+      userName = prefs.getString('name') ?? 'Member';
+      memberCode = prefs.getString('member_code') ?? '';
+      totalPoints = prefs.getInt('total_points') ?? 0;
+      earnedPoints = prefs.getInt('earned_points') ?? 0;
     });
 
-    final lastLoginStr =
-        prefs.getString("last_login_at");
-
+    // Determine whether to show roulette: show if last login was not today
+    final lastLoginStr = prefs.getString('last_login_at');
     bool showRoulette = false;
 
     if (lastLoginStr == null) {
       showRoulette = true;
     } else {
-      final lastLoginDate =
-          DateTime.parse(lastLoginStr);
-
-      final today = DateTime.now();
-
-      final isSameDay =
-          lastLoginDate.year == today.year &&
-          lastLoginDate.month == today.month &&
-          lastLoginDate.day == today.day;
-
-      showRoulette = !isSameDay;
+      final lastLoginDate = DateTime.tryParse(lastLoginStr);
+      if (lastLoginDate == null) {
+        showRoulette = true;
+      } else {
+        final today = DateTime.now();
+        final isSameDay = lastLoginDate.year == today.year && lastLoginDate.month == today.month && lastLoginDate.day == today.day;
+        showRoulette = !isSameDay;
+      }
     }
 
-    print(
-      "LAST LOGIN = $lastLoginStr",
-    );
-
-    print(
-      "SHOW ROULETTE = $showRoulette",
-    );
+    print('LAST LOGIN = $lastLoginStr');
+    print('SHOW ROULETTE = $showRoulette');
 
     if (showRoulette && mounted) {
-      Future.delayed(
-        const Duration(milliseconds: 500),
-        () {
-          showRoulettePopup();
-        },
-      );
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (mounted) showRoulettePopup();
     }
   }
 
@@ -322,93 +316,66 @@ class _HomePageState extends State<HomePage>
                           ),
                         ],
                       ),
-                      if (earnedPoints > 0) ...[
-                        const SizedBox(
-                            height: 20),
-                        Container(
-                          padding:
-                              const EdgeInsets.all(
-                                  20),
-                          decoration:
-                              BoxDecoration(
-                            color: const Color(
-                                0xFF6F2DBD),
-                            borderRadius:
-                                BorderRadius
-                                    .circular(
-                                        20),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment
-                                          .start,
-                                  children: [
-                                    Text(
-                                      "🎉 You earned",
-                                      style:
-                                          GoogleFonts
-                                              .poppins(
-                                        color: Colors
-                                            .white70,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    const SizedBox(
-                                        height: 8),
-                                    Text(
-                                      "+$earnedPoints",
-                                      style:
-                                          GoogleFonts
-                                              .poppins(
-                                        color: Colors
-                                            .white,
-                                        fontSize: 52,
-                                        fontWeight:
-                                            FontWeight
-                                                .bold,
-                                      ),
-                                    ),
-                                    Text(
-                                      "ROULETTE REWARD",
-                                      style:
-                                          GoogleFonts
-                                              .poppins(
-                                        color: Colors
-                                            .white,
-                                        fontWeight:
-                                            FontWeight
-                                                .w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                width: 90,
-                                height: 90,
-                                decoration:
-                                    const BoxDecoration(
-                                  color:
-                                      Colors.orange,
-                                  shape:
-                                      BoxShape.circle,
-                                ),
-                                child:
-                                    const Icon(
-                                  Icons
-                                      .monetization_on,
-                                  color:
-                                      Colors.white,
-                                  size: 50,
-                                ),
-                              ),
-                            ],
-                          ),
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6F2DBD),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                      ],
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Recent Activity",
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    earnedPoints > 0
+                                        ? "+$earnedPoints"
+                                        : "No rewards yet",
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.white,
+                                      fontSize: earnedPoints > 0 ? 52 : 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    earnedPoints > 0
+                                        ? "ROULETTE REWARD"
+                                        : "SPIN TO EARN POINTS",
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              width: 90,
+                              height: 90,
+                              decoration: const BoxDecoration(
+                                color: Colors.orange,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.history,
+                                color: Colors.white,
+                                size: 50,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(
                           height: 20),
                       Row(

@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 
 import '../navigation/main_navigation.dart';
+import '../services/user_profile_service.dart';
 import 'login_page.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -38,11 +37,12 @@ class _SplashScreenState extends State<SplashScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("token");
+    final memberCode = prefs.getString("member_code") ?? "";
 
     if (!mounted) return;
 
     // No token -> Login
-    if (token == null) {
+    if (token == null || memberCode.isEmpty) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -53,18 +53,11 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     try {
-      final response = await http.get(
-        Uri.parse(
-          "http://YOUR_SERVER/profile.php",
-        ),
-        headers: {
-          "Authorization": "Bearer $token",
-        },
+      final profileLoaded = await UserProfileService.fetchAndSaveProfile(
+        memberCode: memberCode,
       );
 
-      final data = jsonDecode(response.body);
-
-      if (data["success"] == true) {
+      if (profileLoaded) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
