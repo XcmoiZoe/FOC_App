@@ -42,9 +42,9 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final res = await http.post(
-        Uri.parse("https://artbiglobalph.com/api/sign_in.php"),
+        Uri.parse("http://54.255.150.15/mobile-api/login"),
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
+       body: jsonEncode({
           "member_code": memberCode,
           "code": code,
         }),
@@ -187,7 +187,7 @@ class _LoginPageState extends State<LoginPage> {
 
               buildTextField(
                 controller: codeController,
-                hint: "Password",
+                hint: "Login Code",
                 icon: Icons.lock_outline,
                 obscure: obscurePassword,
                 suffix: IconButton(

@@ -65,24 +65,24 @@ class _SignupPageState extends State<SignupPage> {
             headers: {
               "Content-Type": "application/json",
             },
-            body: jsonEncode({
-              "fname": fname,
-              "email": email,
-              "phone": phone,
-              "address": address,
-            }),
+          body: jsonEncode({
+            "name": fname,
+            "email": email,
+            "phone": phone,
+            "address": address,
+          }),
           )
           .timeout(
             const Duration(seconds: 15),
           );
 
-      if (res.statusCode != 200) {
-        setState(() {
-          message =
-              "Server Error (${res.statusCode})";
-        });
-        return;
-      }
+      if (res.statusCode != 200 &&
+    res.statusCode != 201) {
+  setState(() {
+    message = "Server Error (${res.statusCode})";
+  });
+  return;
+}
 
       final data = jsonDecode(res.body);
 
@@ -91,7 +91,7 @@ class _SignupPageState extends State<SignupPage> {
             data["member_code"] ?? "";
 
         final generatedCode =
-            data["generated_code"] ?? "";
+        data["login_code"] ?? "";
 
         if (!mounted) return;
 
