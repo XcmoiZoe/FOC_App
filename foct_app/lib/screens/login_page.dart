@@ -60,21 +60,61 @@ class _LoginPageState extends State<LoginPage> {
 
       final data = jsonDecode(res.body);
 
-      if (data["success"] == true) {
-        final prefs = await SharedPreferences.getInstance();
+    if (data["success"] == true) {
+  final prefs = await SharedPreferences.getInstance();
 
-        await prefs.setString("token", data["token"]);
-        await prefs.setString("member_code", data["member_code"]);
+  await prefs.setString(
+    "token",
+    data["token"] ?? "",
+  );
 
-        if (!mounted) return;
+  await prefs.setString(
+    "name",
+    data["user"]?["name"] ?? "",
+  );
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const MainNavigation(),
-          ),
-        );
-      } else {
+  await prefs.setString(
+    "email",
+    data["user"]?["email"] ?? "",
+  );
+
+  await prefs.setString(
+    "phone",
+    data["user"]?["phone"] ?? "",
+  );
+
+  await prefs.setString(
+    "address",
+    data["user"]?["address"] ?? "",
+  );
+
+  await prefs.setString(
+    "member_code",
+    data["user"]?["member_code"] ?? "",
+  );
+
+  await prefs.setInt(
+    "total_points",
+    data["user"]?["total_points"] ?? 0,
+  );
+
+  print(
+    "NAME: ${prefs.getString("name")}"
+  );
+
+  print(
+    "MEMBER CODE: ${prefs.getString("member_code")}"
+  );
+
+  if (!mounted) return;
+
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const MainNavigation(),
+    ),
+  );
+} else {
         setState(() {
           error = data["message"] ?? "Login Failed";
         });
