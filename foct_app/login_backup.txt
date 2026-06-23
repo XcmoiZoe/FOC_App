@@ -1,0 +1,40 @@
+6QNPS8 / 836286
+T43A8P / 195089
+3DSEYH / 991958
+
+curl -X POST http://localhost:3000/mobile-api/login \
+-H "Content-Type: application/json" \
+-d '{
+"member_code":"3DSEYH",
+"code":"991958"
+}'
+
+XYJE5B / 525953
+U7U4AD / 378730
+
+
+Flutter Login
+    ↓
+/mobile-api/login
+    ↓
+MySQL
+    ↓
+Token
+
+Flutter Home
+    ↓
+Authorization: Bearer Token
+    ↓
+/mobile-api/profile
+    ↓
+MySQL
+
+Flutter Roulette
+    ↓
+Authorization: Bearer Token
+    ↓
+/mobile-api/roulette
+    ↓
+MySQL
+
+R3ZRA4 / 534051
