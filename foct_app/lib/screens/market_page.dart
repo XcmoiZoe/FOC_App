@@ -16,7 +16,7 @@ class _MarketPageState extends State<MarketPage> {
 
     Future.microtask(() async {
       final Uri url = Uri.parse(
-        "https://artbiglobalph.com/atomy",
+        "https://artbiglobalph.com/YesRedeem/index.php",
       );
 
       if (!await launchUrl(

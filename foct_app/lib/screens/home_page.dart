@@ -6,7 +6,6 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:http/http.dart' as http;
-import '../services/user_profile_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,9 +16,16 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage>
     with TickerProviderStateMixin {
+
   String userName = "Member";
   String memberCode = "";
   int totalPoints = 0;
+  String recentTitle = "No rewards yet";
+  String recentDescription = "SPIN TO EARN POINTS";
+  int recentPoints = 0;
+  int activityCount = 0;
+  List<dynamic> rewards = [];
+
   late AnimationController _spinController;
   bool _isSpinning = false;
   final int nextReward = 5000;
@@ -76,11 +82,23 @@ class _HomePageState extends State<HomePage>
                           });
 
                           // Ask server for the reward first so we can animate to that sector
-                          final resp = await http.post(
-                            Uri.parse('http://54.255.150.15/mobile-api/roulette'),
-                            headers: {'Content-Type': 'application/json'},
-                            body: jsonEncode({'member_code': memberCode}),
-                          );
+                                                    final prefs =
+                                await SharedPreferences.getInstance();
+
+                            final token =
+                                prefs.getString('token');
+
+                            final resp = await http.post(
+                              Uri.parse(
+                                'http://54.255.150.15/mobile-api/roulette',
+                              ),
+                              headers: {
+                                'Authorization':
+                                    'Bearer $token',
+                                'Content-Type':
+                                    'application/json',
+                              },
+                            );
 
                           final Map data = jsonDecode(resp.body);
                           if (data['success'] != true) {
@@ -105,23 +123,20 @@ class _HomePageState extends State<HomePage>
                             targetTurns,
                             curve: Curves.decelerate,
                           ).whenComplete(() async {
-                            // Persist server response locally (but don't store earned_points—trust server total_points)
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.setInt('total_points', newTotal);
-                            await prefs.remove('earned_points'); // Don't store; only trust server
-                            await prefs.setString('last_login_at', DateTime.now().toIso8601String());
-
                             setState(() {
                               earnedPoints = reward;
-                              totalPoints = newTotal;
                               _isSpinning = false;
                             });
 
                             Navigator.pop(context);
+
                             showRewardDialog(reward);
 
-                            // reset controller to a small value to allow next spin
-                            _spinController.value = targetTurns % 1;
+                            await loadUser();
+                            await loadRecentActivity();
+                            await loadActivityCount();
+                            _spinController.value =
+                                targetTurns % 1;
                           });
                         },
                   child: Text(_isSpinning ? 'SPINNING...' : 'SPIN NOW'),
@@ -158,73 +173,422 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _spinController = AnimationController(
-      vsync: this,
-      lowerBound: 0.0,
-      upperBound: 100.0,
-      duration: const Duration(seconds: 4),
-    );
-    loadUser();
-  }
+@override
+void initState() {
+  super.initState();
+
+  _spinController = AnimationController(
+    vsync: this,
+    lowerBound: 0.0,
+    upperBound: 100.0,
+    duration: const Duration(seconds: 4),
+  );
+
+  loadUser();
+  loadRewards();
+  loadRecentActivity();
+  loadActivityCount();
+}
 
   @override
   void dispose() {
     _spinController.dispose();
     super.dispose();
   }
+Future<void> showActivityHistory() async {
+  final prefs =
+      await SharedPreferences.getInstance();
 
-  Future<void> loadUser() async {
-    final prefs = await SharedPreferences.getInstance();
+  final token =
+      prefs.getString('token');
 
-    final storedMemberCode = prefs.getString('member_code') ?? '';
-    if (storedMemberCode.isNotEmpty) {
-      try {
-        await UserProfileService.fetchAndSaveProfile(
-          memberCode: storedMemberCode,
+  if (token == null) return;
+
+  try {
+    final response = await http.post(
+      Uri.parse(
+        'http://54.255.150.15/mobile-api/activity-history',
+      ),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final data =
+        jsonDecode(response.body);
+
+    if (data['success'] != true) return;
+
+    final activities =
+        data['activities'];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) {
+        return Container(
+          padding:
+              const EdgeInsets.all(20),
+          height:
+              MediaQuery.of(context)
+                      .size
+                      .height *
+                  .75,
+          child: Column(
+            children: [
+              Text(
+                "Activity History",
+                style:
+                    GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight:
+                      FontWeight.bold,
+                ),
+              ),
+              const SizedBox(
+                  height: 15),
+              Expanded(
+                child: ListView.builder(
+                  itemCount:
+                      activities.length,
+                  itemBuilder:
+                      (context, index) {
+                    final item =
+                        activities[index];
+
+                    final points =
+                        item['points'];
+
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor:
+                            points >= 0
+                                ? Colors.green
+                                : Colors.red,
+                        child: Icon(
+                          points >= 0
+                              ? Icons.add
+                              : Icons.remove,
+                          color:
+                              Colors.white,
+                        ),
+                      ),
+                      title: Text(
+                        item['title'] ??
+                            '',
+                      ),
+                      subtitle: Text(
+                        item['description'] ??
+                            '',
+                      ),
+                      trailing: Text(
+                        "${points > 0 ? '+' : ''}$points",
+                        style: TextStyle(
+                          color:
+                              points > 0
+                                  ? Colors
+                                      .green
+                                  : Colors.red,
+                          fontWeight:
+                              FontWeight
+                                  .bold,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         );
-        await prefs.reload();
-      } catch (e) {
-        // ignore network errors and fallback to local values
-        print('loadUser: profile fetch failed: $e');
-      }
-    }
+      },
+    );
+  } catch (e) {
+    debugPrint(
+      "History Error: $e",
+    );
+  }
+}
+Future<void> loadUser() async {
+  final prefs =
+      await SharedPreferences.getInstance();
 
-    setState(() {
-      userName = prefs.getString('name') ?? 'Member';
-      memberCode = prefs.getString('member_code') ?? '';
-      totalPoints = prefs.getInt('total_points') ?? 0;
-      earnedPoints = prefs.getInt('earned_points') ?? 0;
-    });
+  final token =
+      prefs.getString('token');
 
-    // Determine whether to show roulette: show if last login was not today
-    final lastLoginStr = prefs.getString('last_login_at');
-    bool showRoulette = false;
-
-    if (lastLoginStr == null) {
-      showRoulette = true;
-    } else {
-      final lastLoginDate = DateTime.tryParse(lastLoginStr);
-      if (lastLoginDate == null) {
-        showRoulette = true;
-      } else {
-        final today = DateTime.now();
-        final isSameDay = lastLoginDate.year == today.year && lastLoginDate.month == today.month && lastLoginDate.day == today.day;
-        showRoulette = !isSameDay;
-      }
-    }
-
-    print('LAST LOGIN = $lastLoginStr');
-    print('SHOW ROULETTE = $showRoulette');
-
-    if (showRoulette && mounted) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (mounted) showRoulettePopup();
-    }
+  if (token == null || token.isEmpty) {
+    return;
   }
 
+  try {
+    final response = await http.post(
+      Uri.parse(
+        'http://54.255.150.15/mobile-api/profile',
+      ),
+      headers: {
+        'Authorization':
+            'Bearer $token',
+        'Content-Type':
+            'application/json',
+      },
+    );
+
+    final data =
+        jsonDecode(response.body);
+
+    if (data['success'] == true) {
+      final user = data['user'];
+
+      setState(() {
+        userName =
+            user['name'] ?? 'Member';
+        memberCode =
+            user['member_code'] ?? '';
+        totalPoints =
+            (user['total_points'] ?? 0)
+                .toInt();
+      });
+
+      final lastRouletteStr =
+          user['last_roulette_at']
+              ?.toString();
+
+      bool showRoulette = false;
+
+      if (lastRouletteStr == null ||
+          lastRouletteStr.isEmpty) {
+        showRoulette = true;
+      } else {
+        final lastRouletteDate =
+            DateTime.tryParse(
+                lastRouletteStr);
+
+        if (lastRouletteDate == null) {
+          showRoulette = true;
+        } else {
+          final today =
+              DateTime.now();
+
+          final isSameDay =
+              lastRouletteDate.year ==
+                      today.year &&
+                  lastRouletteDate.month ==
+                      today.month &&
+                  lastRouletteDate.day ==
+                      today.day;
+
+          showRoulette = !isSameDay;
+        }
+      }
+
+      debugPrint(
+          'LAST ROULETTE = $lastRouletteStr');
+      debugPrint(
+          'SHOW ROULETTE = $showRoulette');
+
+      if (showRoulette && mounted) {
+        await Future.delayed(
+          const Duration(
+              milliseconds: 500),
+        );
+
+        if (mounted) {
+          showRoulettePopup();
+        }
+      }
+    }
+  } catch (e) {
+    debugPrint(
+      'Profile Load Error: $e',
+    );
+  }
+}
+Future<void> loadRewards() async {
+  try {
+    final response = await http.get(
+      Uri.parse(
+        'http://54.255.150.15/mobile-api/rewards',
+      ),
+    );
+
+    final data =
+        jsonDecode(response.body);
+
+    if (data['success'] == true) {
+      setState(() {
+        rewards = data['rewards'];
+      });
+    }
+  } catch (e) {
+    debugPrint(e.toString());
+  }
+}List<dynamic> getNearestRewards() {
+  print("TOTAL POINTS = $totalPoints");
+  print("REWARDS LENGTH = ${rewards.length}");
+
+  if (rewards.isEmpty) {
+    return [];
+  }
+
+  return rewards.take(3).toList();
+}
+Future<void> loadActivityCount() async {
+  final prefs =
+      await SharedPreferences.getInstance();
+
+  final token =
+      prefs.getString('token');
+
+  if (token == null || token.isEmpty) {
+    return;
+  }
+
+  try {
+    final response = await http.post(
+      Uri.parse(
+        'http://54.255.150.15/mobile-api/activity-history',
+      ),
+      headers: {
+        'Authorization':
+            'Bearer $token',
+        'Content-Type':
+            'application/json',
+      },
+    );
+
+    final data =
+        jsonDecode(response.body);
+
+    if (data['success'] == true) {
+      setState(() {
+        activityCount =
+            data['total'] ?? 0;
+      });
+    }
+
+    print(
+      'ACTIVITY COUNT = $activityCount',
+    );
+  } catch (e) {
+    debugPrint(
+      'Activity Count Error: $e',
+    );
+  }
+}
+Future<void> loadRecentActivity() async {
+  final prefs =
+      await SharedPreferences.getInstance();
+
+  final token =
+      prefs.getString('token');
+
+  if (token == null) return;
+
+  try {
+    final response = await http.post(
+      Uri.parse(
+        'http://54.255.150.15/mobile-api/activity',
+      ),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final data =
+        jsonDecode(response.body);
+
+    debugPrint(
+        "ACTIVITY RESPONSE: ${response.body}");
+
+  if (data['success'] == true &&
+    data['activity'] != null) {
+
+  final activity =
+      data['activity'];
+
+  setState(() {
+    recentTitle =
+        activity['title'] ?? '';
+
+    recentDescription =
+        activity['description'] ?? '';
+
+    recentPoints =
+        activity['points'] ?? 0;
+
+    
+  });
+}
+  } catch (e) {
+    debugPrint(
+      "ACTIVITY ERROR: $e",
+    );
+  }
+}
+Future<void> redeemReward(int rewardId) async {
+  final prefs =
+      await SharedPreferences.getInstance();
+
+  final token =
+      prefs.getString('token');
+
+  if (token == null) return;
+
+  try {
+    final response = await http.post(
+      Uri.parse(
+        'http://54.255.150.15/mobile-api/redeem',
+      ),
+      headers: {
+        'Authorization':
+            'Bearer $token',
+        'Content-Type':
+            'application/json',
+      },
+      body: jsonEncode({
+        'reward_id': rewardId,
+      }),
+    );
+
+    final data =
+        jsonDecode(response.body);
+
+    if (data['success'] == true) {
+      await loadUser();
+      await loadRecentActivity();
+      await loadActivityCount();
+      showDialog(
+  context: context,
+  builder: (_) => AlertDialog(
+    title: const Text("🎉 Redeemed"),
+    content: Text(
+      "${data['reward']['title']} redeemed successfully!"
+    ),
+    actions: [
+      TextButton(
+        onPressed: () {
+          Navigator.pop(context);
+        },
+        child: const Text("OK"),
+      ),
+    ],
+  ),
+);
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content:
+              Text(data['message']),
+        ),
+      );
+    }
+  } catch (e) {
+    debugPrint(
+      'Redeem Error: $e',
+    );
+  }
+}
   @override
   Widget build(BuildContext context) {
     final double progress =
@@ -235,9 +599,12 @@ class _HomePageState extends State<HomePage>
       backgroundColor: const Color(0xFFF5F5F7),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () async {
-            await loadUser();
-          },
+         onRefresh: () async {
+  await loadUser();
+  await loadRewards();
+  await loadRecentActivity();
+  await loadActivityCount();
+},
           child: SingleChildScrollView(
             physics:
                 const AlwaysScrollableScrollPhysics(),
@@ -306,14 +673,41 @@ class _HomePageState extends State<HomePage>
                                 ),
                               ],
                             ),
+                           
                           ),
-                          IconButton(
-                            onPressed: () {},
-                            icon: const Icon(
-                              Icons
-                                  .notifications_none,
-                            ),
-                          ),
+                                        Stack(
+  children: [
+    IconButton(
+      onPressed: () {
+        showActivityHistory();
+      },
+      icon: const Icon(
+  Icons.notifications_none,
+  color: Color(0xFF6F2DBD),
+),
+    ),
+
+    Positioned(
+      right: 8,
+      top: 8,
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: const BoxDecoration(
+          color: Colors.red,
+          shape: BoxShape.circle,
+        ),
+        child: Text(
+          activityCount.toString(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    ),
+  ],
+)
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -338,25 +732,35 @@ class _HomePageState extends State<HomePage>
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  Text(
-                                    earnedPoints > 0
-                                        ? "+$earnedPoints"
-                                        : "No rewards yet",
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.white,
-                                      fontSize: earnedPoints > 0 ? 52 : 24,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                 Text(
+                                  recentPoints == 0
+                                      ? recentTitle
+                                      : "${recentPoints > 0 ? '+' : ''}$recentPoints",
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white,
+                                    fontSize: recentPoints == 0 ? 24 : 52,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  Text(
-                                    earnedPoints > 0
-                                        ? "ROULETTE REWARD"
-                                        : "SPIN TO EARN POINTS",
-                                    style: GoogleFonts.poppins(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                                ),
+                               Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Text(
+      recentTitle,
+      style: GoogleFonts.poppins(
+        color: Colors.white,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    Text(
+      recentDescription,
+      style: GoogleFonts.poppins(
+        color: Colors.white70,
+        fontSize: 12,
+      ),
+    ),
+  ],
+),
                                 ],
                               ),
                             ),
@@ -491,6 +895,73 @@ class _HomePageState extends State<HomePage>
                     ],
                   ),
                 ),
+
+                const SizedBox(height: 20),
+
+Container(
+  padding: const EdgeInsets.all(20),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(20),
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        "Rewards You Can Redeem",
+        style: GoogleFonts.poppins(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+
+      const SizedBox(height: 15),
+
+      if (getNearestRewards().isEmpty)
+        const Center(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Text(
+              "No rewards available yet",
+            ),
+          ),
+        ),
+
+      ...getNearestRewards().map(
+        (reward) => Card(
+          elevation: 0,
+          child: ListTile(
+            leading: const Icon(
+              Icons.redeem,
+              color: Colors.deepPurple,
+            ),
+            title: Text(
+              reward['title'] ?? '',
+            ),
+            subtitle: Text(
+              reward['description'] ?? '',
+            ),
+                      trailing: ElevatedButton(
+            onPressed: totalPoints >= reward['points_required']
+                ? () {
+                    redeemReward(reward['id']);
+                  }
+                : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurple,
+            ),
+            child: Text(
+              totalPoints >= reward['points_required']
+                  ? "Redeem"
+                  : "${reward['points_required']} PTS",
+            ),
+          ),
+          ),
+        ),
+      ),
+    ],
+  ),
+),
               ],
             ),
           ),

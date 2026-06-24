@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/app_background.dart';
 import '../navigation/main_navigation.dart';
-import '../services/user_profile_service.dart';
 import 'forgot_password_page.dart';
 import 'signup_page.dart';
 
@@ -62,38 +61,30 @@ class _LoginPageState extends State<LoginPage> {
 
       final data = jsonDecode(res.body);
 
-      if (data["success"] == true) {
-        final prefs = await SharedPreferences.getInstance();
-        final loginUser = data["user"] is Map
-            ? Map<String, dynamic>.from(data["user"] as Map)
-            : null;
-        final profileMemberCode =
-            loginUser?["member_code"]?.toString() ?? memberCode;
+     if (data["success"] == true) {
+  final prefs =
+      await SharedPreferences.getInstance();
 
-        await prefs.setString("token", data["token"] ?? "");
-        await prefs.setString("member_code", profileMemberCode);
+  await prefs.setString(
+    "token",
+    data["token"] ?? "",
+  );
 
-        final profileLoaded = await UserProfileService.fetchAndSaveProfile(
-          memberCode: profileMemberCode,
-        );
+  await prefs.setString(
+    "member_code",
+    memberCode,
+  );
 
-        if (!profileLoaded && loginUser != null) {
-          await UserProfileService.saveUser(
-            loginUser,
-            prefs: prefs,
-            fallbackMemberCode: profileMemberCode,
-          );
-        }
+  if (!mounted) return;
 
-        if (!mounted) return;
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const MainNavigation(),
-          ),
-        );
-      } else {
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) =>
+          const MainNavigation(),
+    ),
+  );
+} else {
         setState(() {
           error = data["message"] ?? "Login Failed";
         });

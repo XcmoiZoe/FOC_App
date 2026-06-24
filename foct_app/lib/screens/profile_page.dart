@@ -1,8 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../services/user_profile_service.dart';
 import '../screens/login_page.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -17,7 +18,10 @@ class _ProfilePageState extends State<ProfilePage> {
   String memberCode = '';
   String email = '';
   String phone = '';
+  String address = '';
   int totalPoints = 0;
+
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -26,108 +30,273 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> loadProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    final storedMemberCode = prefs.getString('member_code') ?? '';
+    try {
+      final prefs =
+          await SharedPreferences.getInstance();
 
-    if (storedMemberCode.isNotEmpty) {
-      try {
-        await UserProfileService.fetchAndSaveProfile(
-          memberCode: storedMemberCode,
-        );
-        await prefs.reload();
-      } catch (_) {
-        // Keep cached profile data if the network request fails.
+      final token =
+          prefs.getString('token');
+
+      if (token == null ||
+          token.isEmpty) {
+        setState(() {
+          isLoading = false;
+        });
+        return;
       }
+
+      final response = await http.post(
+        Uri.parse(
+          'http://54.255.150.15/mobile-api/profile',
+        ),
+        headers: {
+          'Authorization':
+              'Bearer $token',
+          'Content-Type':
+              'application/json',
+        },
+      );
+
+      final data =
+          jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        final user = data['user'];
+
+        if (!mounted) return;
+
+        setState(() {
+          name =
+              user['name'] ?? 'User';
+
+          memberCode =
+              user['member_code'] ?? '';
+
+          email =
+              user['email'] ?? '';
+
+          phone =
+              user['phone'] ?? '';
+
+          address =
+              user['address'] ?? '';
+
+          totalPoints =
+              (user['total_points'] ?? 0)
+                  .toInt();
+
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint(
+        'PROFILE ERROR: $e',
+      );
+
+      setState(() {
+        isLoading = false;
+      });
     }
+  }
+
+  Future<void> logout() async {
+    final prefs =
+        await SharedPreferences.getInstance();
+
+    await prefs.clear();
 
     if (!mounted) return;
 
-    setState(() {
-      name = prefs.getString('name') ?? 'User';
-      memberCode = prefs.getString('member_code') ?? '';
-      email = prefs.getString('email') ?? '';
-      phone = prefs.getString('phone') ?? '';
-      totalPoints = prefs.getInt('total_points') ?? 0;
-    });
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            const LoginPage(),
+      ),
+      (route) => false,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    const primaryPurple = Color(0xFF6A1B9A);
-    const accentOrange = Color(0xFFFF8F00);
+    const primaryPurple =
+        Color(0xFF6A1B9A);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F5FC),
-
+      backgroundColor:
+          const Color(0xFFF8F5FC),
       appBar: AppBar(
         title: const Text("Profile"),
-        backgroundColor: primaryPurple,
+        backgroundColor:
+            primaryPurple,
       ),
-
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-
-            // 🔥 HEADER
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF6A1B9A), Color(0xFFFF8F00)],
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(25),
-                  bottomRight: Radius.circular(25),
-                ),
-              ),
+      body: isLoading
+          ? const Center(
+              child:
+                  CircularProgressIndicator(),
+            )
+          : SingleChildScrollView(
               child: Column(
                 children: [
-                  const CircleAvatar(
-                    radius: 45,
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.person, size: 50, color: Color(0xFF6A1B9A)),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                  Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.all(
+                            20),
+                    decoration:
+                        const BoxDecoration(
+                      gradient:
+                          LinearGradient(
+                        colors: [
+                          Color(
+                              0xFF6A1B9A),
+                          Color(
+                              0xFFFF8F00),
+                        ],
+                      ),
+                      borderRadius:
+                          BorderRadius.only(
+                        bottomLeft:
+                            Radius.circular(
+                                25),
+                        bottomRight:
+                            Radius.circular(
+                                25),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        const CircleAvatar(
+                          radius: 45,
+                          backgroundColor:
+                              Colors.white,
+                          child: Icon(
+                            Icons.person,
+                            size: 50,
+                            color: Color(
+                                0xFF6A1B9A),
+                          ),
+                        ),
+                        const SizedBox(
+                            height: 10),
+                        Text(
+                          name,
+                          style:
+                              const TextStyle(
+                            color:
+                                Colors.white,
+                            fontSize: 20,
+                            fontWeight:
+                                FontWeight
+                                    .bold,
+                          ),
+                        ),
+                        const SizedBox(
+                            height: 5),
+                        Text(
+                          memberCode,
+                          style:
+                              const TextStyle(
+                            color: Colors
+                                .white70,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    memberCode.isEmpty ? "Logged User" : memberCode,
-                    style: const TextStyle(color: Colors.white70),
+
+                  const SizedBox(
+                      height: 20),
+
+                  Padding(
+                    padding:
+                        const EdgeInsets
+                            .symmetric(
+                      horizontal: 16,
+                    ),
+                    child: Column(
+                      children: [
+                        ProfileInfo(
+                          title: "Email",
+                          value: email,
+                        ),
+                        ProfileInfo(
+                          title: "Phone",
+                          value: phone,
+                        ),
+                        ProfileInfo(
+                          title: "Address",
+                          value: address,
+                        ),
+                        ProfileInfo(
+                          title:
+                              "Total Points",
+                          value:
+                              totalPoints
+                                  .toString(),
+                        ),
+
+                        const SizedBox(
+                            height: 10),
+
+                        const ProfileMenu(
+                          title:
+                              "Edit Profile",
+                          icon:
+                              Icons.edit,
+                        ),
+                        const ProfileMenu(
+                          title:
+                              "Transaction History",
+                          icon:
+                              Icons.history,
+                        ),
+                        const ProfileMenu(
+                          title:
+                              "Notifications",
+                          icon: Icons
+                              .notifications,
+                        ),
+                        const ProfileMenu(
+                          title:
+                              "Settings",
+                          icon: Icons
+                              .settings,
+                        ),
+
+                        Card(
+                          child: ListTile(
+                            leading:
+                                const Icon(
+                              Icons.logout,
+                              color:
+                                  Colors.red,
+                            ),
+                            title: const Text(
+                              "Logout",
+                            ),
+                            trailing:
+                                const Icon(
+                              Icons
+                                  .arrow_forward_ios,
+                              size: 16,
+                            ),
+                            onTap: logout,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+
+                  const SizedBox(
+                      height: 20),
                 ],
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                children: [
-                  ProfileInfo(title: "Email", value: email),
-                  ProfileInfo(title: "Phone", value: phone),
-                  ProfileInfo(title: "Total Points", value: totalPoints.toString()),
-                  const ProfileMenu(title: "Edit Profile", icon: Icons.edit),
-                  const ProfileMenu(title: "Transaction History", icon: Icons.history),
-                  const ProfileMenu(title: "Notifications", icon: Icons.notifications),
-                  const ProfileMenu(title: "Settings", icon: Icons.settings),
-                  const ProfileMenu(title: "Logout", icon: Icons.logout),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -145,13 +314,17 @@ class ProfileInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin:
+          const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+            BorderRadius.circular(12),
       ),
       child: ListTile(
         title: Text(title),
-        subtitle: Text(value.isEmpty ? '-' : value),
+        subtitle: Text(
+          value.isEmpty ? '-' : value,
+        ),
       ),
     );
   }
@@ -167,52 +340,33 @@ class ProfileMenu extends StatelessWidget {
     required this.icon,
   });
 
-  Future<void> logout(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("token");
-
-    try {
-      await http.post(
-        Uri.parse("https://artbiglobalph.com/api/logout.php"),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-      );
-    } catch (_) {
-      // ignore error, still logout locally
-    }
-
-    await prefs.clear();
-
-    if (!context.mounted) return;
-
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginPage()),
-      (route) => false,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin:
+          const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius:
+            BorderRadius.circular(12),
       ),
       child: ListTile(
-        leading: Icon(icon, color: Colors.deepPurple),
+        leading: Icon(
+          icon,
+          color: Colors.deepPurple,
+        ),
         title: Text(title),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+        ),
         onTap: () {
-          if (title == "Logout") {
-            logout(context);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("$title clicked")),
-            );
-          }
+          ScaffoldMessenger.of(context)
+              .showSnackBar(
+            SnackBar(
+              content:
+                  Text("$title clicked"),
+            ),
+          );
         },
       ),
     );

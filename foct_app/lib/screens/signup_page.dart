@@ -34,14 +34,34 @@ class _SignupPageState extends State<SignupPage> {
 
     try {
       final fname = fnameController.text.trim();
-      final email = emailController.text.trim();
-      final phone = phoneController.text.trim();
-      final address = addressController.text.trim();
+final email = emailController.text.trim();
+final phone = phoneController.text.trim();
+final address = addressController.text.trim();
 
-      if (fname.isEmpty ||
-          email.isEmpty ||
-          phone.isEmpty ||
-          address.isEmpty) {
+final emailRegex = RegExp(
+  r'^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$',
+);
+
+if (!emailRegex.hasMatch(email)) {
+  setState(() {
+    message = "Please enter a valid email address";
+    isLoading = false;
+  });
+  return;
+}
+
+if (!RegExp(r'^09\d{9}$').hasMatch(phone)) {
+  setState(() {
+    message = "Please enter a valid phone number";
+    isLoading = false;
+  });
+  return;
+}
+
+if (fname.isEmpty ||
+    email.isEmpty ||
+    phone.isEmpty ||
+    address.isEmpty) {
         setState(() {
           message = "All fields are required";
           isLoading = false;
@@ -76,15 +96,26 @@ class _SignupPageState extends State<SignupPage> {
             const Duration(seconds: 15),
           );
 
-      if (res.statusCode != 200 &&
-    res.statusCode != 201) {
+   final data = jsonDecode(res.body);
+
+if (res.statusCode == 409) {
   setState(() {
-    message = "Server Error (${res.statusCode})";
+    message = data["message"] ??
+        "Email or phone already exists";
+    isLoading = false;
   });
   return;
 }
 
-      final data = jsonDecode(res.body);
+if (res.statusCode != 200 &&
+    res.statusCode != 201) {
+  setState(() {
+    message = data["message"] ??
+        "Server Error (${res.statusCode})";
+    isLoading = false;
+  });
+  return;
+}
 
       if (data["success"] == true) {
         final memberCode =
