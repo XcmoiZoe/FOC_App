@@ -40,7 +40,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     try {
       final response = await http
           .post(
-            Uri.parse("http://54.255.150.15/mobile-api/forgot-password"),
+            Uri.parse("http://54.255.150.15/mobile-api/forgot"),
             headers: {"Content-Type": "application/json"},
             body: jsonEncode({"phone": phone}),
           )
@@ -192,7 +192,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                             color: Colors.white,
                           )
                         : const Text(
-                            "SEND OTP",
+                            "SEND LOGIN CODE",
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
