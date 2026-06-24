@@ -196,6 +196,7 @@ void initState() {
     super.dispose();
   }
 Future<void> showActivityHistory() async {
+  
   final prefs =
       await SharedPreferences.getInstance();
 
@@ -203,6 +204,19 @@ Future<void> showActivityHistory() async {
       prefs.getString('token');
 
   if (token == null) return;
+
+await http.post(
+  Uri.parse(
+    'http://54.255.150.15/mobile-api/read-notifications',
+  ),
+  headers: {
+    'Authorization': 'Bearer $token',
+  },
+);
+
+setState(() {
+  activityCount = 0;
+});
 
   try {
     final response = await http.post(
@@ -422,15 +436,35 @@ Future<void> loadRewards() async {
   } catch (e) {
     debugPrint(e.toString());
   }
-}List<dynamic> getNearestRewards() {
-  print("TOTAL POINTS = $totalPoints");
-  print("REWARDS LENGTH = ${rewards.length}");
+}List<dynamic> getSuggestedRewards() {
+  final sorted = [...rewards];
 
-  if (rewards.isEmpty) {
-    return [];
+  sorted.sort(
+    (a, b) => (a['points_required'] as int)
+        .compareTo(b['points_required'] as int),
+  );
+
+  // Rewards user can afford
+  final affordable = sorted.where(
+    (r) => totalPoints >= r['points_required'],
+  ).toList();
+
+  // Rewards above current points
+  final upcoming = sorted.where(
+    (r) => totalPoints < r['points_required'],
+  ).toList();
+
+  final result = <dynamic>[];
+
+  // Last reward user can afford
+  if (affordable.isNotEmpty) {
+    result.add(affordable.last);
   }
 
-  return rewards.take(3).toList();
+  // Next rewards
+  result.addAll(upcoming.take(2));
+
+  return result.take(3).toList();
 }
 Future<void> loadActivityCount() async {
   final prefs =
@@ -446,7 +480,7 @@ Future<void> loadActivityCount() async {
   try {
     final response = await http.post(
       Uri.parse(
-        'http://54.255.150.15/mobile-api/activity-history',
+        'http://54.255.150.15/mobile-api/activity-count',
       ),
       headers: {
         'Authorization':
@@ -917,48 +951,73 @@ Container(
 
       const SizedBox(height: 15),
 
-      if (getNearestRewards().isEmpty)
-        const Center(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Text(
-              "No rewards available yet",
-            ),
-          ),
-        ),
-
-      ...getNearestRewards().map(
-        (reward) => Card(
-          elevation: 0,
-          child: ListTile(
-            leading: const Icon(
-              Icons.redeem,
-              color: Colors.deepPurple,
-            ),
-            title: Text(
-              reward['title'] ?? '',
-            ),
-            subtitle: Text(
-              reward['description'] ?? '',
-            ),
-                      trailing: ElevatedButton(
-            onPressed: totalPoints >= reward['points_required']
-                ? () {
-                    redeemReward(reward['id']);
-                  }
-                : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
-            ),
-            child: Text(
-              totalPoints >= reward['points_required']
-                  ? "Redeem"
-                  : "${reward['points_required']} PTS",
-            ),
-          ),
-          ),
-        ),
+     if (getSuggestedRewards().isEmpty)
+  const Center(
+    child: Padding(
+      padding: EdgeInsets.all(20),
+      child: Text(
+        "No rewards available yet",
       ),
+    ),
+  ),
+
+...getSuggestedRewards().map(
+  (reward) => Card(
+    elevation: 0,
+    child: ListTile(
+      leading: const Icon(
+        Icons.redeem,
+        color: Colors.deepPurple,
+      ),
+      title: Text(
+        reward['title'] ?? '',
+      ),
+      subtitle: Text(
+        reward['description'] ?? '',
+      ),
+     trailing: SizedBox(
+  width: 120,
+  child: ElevatedButton(
+    onPressed: totalPoints >=
+            reward['points_required']
+        ? () {
+            redeemReward(
+              reward['id'],
+            );
+          }
+        : () {},
+   style: ElevatedButton.styleFrom(
+  backgroundColor: totalPoints >=
+          reward['points_required']
+      ? const Color(0xFF6F2DBD)
+      : Colors.grey.shade300,
+  elevation: totalPoints >=
+          reward['points_required']
+      ? 6
+      : 0,
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(30),
+  ),
+),
+    child: Text(
+  totalPoints >=
+          reward['points_required']
+      ? "REDEEM"
+      : "+${reward['points_required'] - totalPoints}",
+  style: GoogleFonts.poppins(
+    color: totalPoints >=
+            reward['points_required']
+        ? const Color(0xFFFFD700)
+        : Colors.grey.shade700,
+    fontWeight: FontWeight.bold,
+    fontSize: 13,
+  ),
+),
+  ),
+),
+    ),
+  )
+).toList(),
     ],
   ),
 ),
