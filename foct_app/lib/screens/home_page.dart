@@ -17,6 +17,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage>
     with TickerProviderStateMixin {
 
+  final Map<int, bool> expandedRewards = {};
   String userName = "Member";
   String memberCode = "";
   int totalPoints = 0;
@@ -953,63 +954,331 @@ Container(
     ),
   ),
 
-...getSuggestedRewards().map(
-  (reward) => Card(
+
+...getSuggestedRewards().map((reward) {
+  final bool canRedeem =
+      totalPoints >= reward['points_required'];
+
+  return Card(
     elevation: 0,
-    child: ListTile(
-      leading: const Icon(
-        Icons.redeem,
-        color: Colors.deepPurple,
-      ),
-      title: Text(
-        reward['title'] ?? '',
-      ),
-      subtitle: Text(
-        reward['description'] ?? '',
-      ),
-     trailing: SizedBox(
-  width: 120,
-  child: ElevatedButton(
-    onPressed: totalPoints >=
-            reward['points_required']
-        ? () {
-            redeemReward(
-              reward['id'],
-            );
-          }
-        : () {},
-   style: ElevatedButton.styleFrom(
-  backgroundColor: totalPoints >=
-          reward['points_required']
-      ? const Color(0xFF6F2DBD)
-      : Colors.grey.shade300,
-  elevation: totalPoints >=
-          reward['points_required']
-      ? 6
-      : 0,
-  shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(30),
-  ),
-),
-    child: Text(
-  totalPoints >=
-          reward['points_required']
-      ? "REDEEM"
-      : "+${reward['points_required'] - totalPoints}",
-  style: GoogleFonts.poppins(
-    color: totalPoints >=
-            reward['points_required']
-        ? const Color(0xFFFFD700)
-        : Colors.grey.shade700,
-    fontWeight: FontWeight.bold,
-    fontSize: 13,
-  ),
-),
-  ),
-),
+    color: Colors.transparent,
+    margin: const EdgeInsets.only(bottom: 15),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isMobile = constraints.maxWidth < 500;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8F2FF),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: isMobile
+              ? Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius:
+                              BorderRadius.circular(12),
+                          child: Image.network(
+                            reward['image_url'] ?? '',
+                            width: 90,
+                            height: 90,
+                            fit: BoxFit.cover,
+                            errorBuilder:
+                                (_, __, ___) =>
+                                    Container(
+                              width: 90,
+                              height: 90,
+                              color:
+                                  Colors.grey.shade200,
+                              child: const Icon(
+                                Icons.image,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 15),
+
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                reward['title'],
+                                maxLines: 2,
+                                overflow:
+                                    TextOverflow
+                                        .ellipsis,
+                                style:
+                                    GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight:
+                                      FontWeight.bold,
+                                ),
+                              ),
+
+                              const SizedBox(
+                                  height: 6),
+
+                              Text(
+                                reward['description'],
+                                maxLines:
+                                    expandedRewards[
+                                                reward[
+                                                    'id']] ==
+                                            true
+                                        ? null
+                                        : 2,
+                                overflow:
+                                    expandedRewards[
+                                                reward[
+                                                    'id']] ==
+                                            true
+                                        ? TextOverflow
+                                            .visible
+                                        : TextOverflow
+                                            .ellipsis,
+                                style:
+                                    GoogleFonts.poppins(
+                                  fontSize: 13,
+                                ),
+                              ),
+
+                              const SizedBox(
+                                  height: 6),
+
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    expandedRewards[
+                                            reward['id']] =
+                                        !(expandedRewards[
+                                                reward[
+                                                    'id']] ??
+                                            false);
+                                  });
+                                },
+                                child: Text(
+                                  expandedRewards[
+                                              reward[
+                                                  'id']] ==
+                                          true
+                                      ? "Read Less"
+                                      : "Read More",
+                                  style:
+                                      GoogleFonts.poppins(
+                                    color:
+                                        const Color(
+                                            0xFF6F2DBD),
+                                    fontWeight:
+                                        FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: canRedeem
+                            ? () => redeemReward(
+                                reward['id'])
+                            : null,
+                        style:
+                            ElevatedButton.styleFrom(
+                          backgroundColor:
+                              canRedeem
+                                  ? const Color(
+                                      0xFF6F2DBD)
+                                  : Colors
+                                      .grey.shade300,
+                          shape:
+                              RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius
+                                    .circular(30),
+                          ),
+                        ),
+                        child: Text(
+                          canRedeem
+                              ? "REDEEM"
+                              : "+${reward['points_required'] - totalPoints}",
+                          style:
+                              GoogleFonts.poppins(
+                            color: canRedeem
+                                ? Colors.yellow
+                                : Colors.black54,
+                            fontWeight:
+                                FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius:
+                          BorderRadius.circular(12),
+                      child: Image.network(
+                        reward['image_url'] ?? '',
+                        width: 90,
+                        height: 90,
+                        fit: BoxFit.cover,
+                        errorBuilder:
+                            (_, __, ___) =>
+                                Container(
+                          width: 90,
+                          height: 90,
+                          color:
+                              Colors.grey.shade200,
+                          child: const Icon(
+                            Icons.image,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 16),
+
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            reward['title'],
+                            style:
+                                GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight:
+                                  FontWeight.bold,
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          Text(
+                            reward['description'],
+                            maxLines:
+                                expandedRewards[
+                                            reward[
+                                                'id']] ==
+                                        true
+                                    ? null
+                                    : 2,
+                            overflow:
+                                expandedRewards[
+                                            reward[
+                                                'id']] ==
+                                        true
+                                    ? TextOverflow
+                                        .visible
+                                    : TextOverflow
+                                        .ellipsis,
+                            style:
+                                GoogleFonts.poppins(
+                              fontSize: 13,
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          InkWell(
+                            onTap: () {
+                              setState(() {
+                                expandedRewards[
+                                        reward['id']] =
+                                    !(expandedRewards[
+                                            reward[
+                                                'id']] ??
+                                        false);
+                              });
+                            },
+                            child: Text(
+                              expandedRewards[
+                                          reward[
+                                              'id']] ==
+                                      true
+                                  ? "Read Less"
+                                  : "Read More",
+                              style:
+                                  GoogleFonts.poppins(
+                                color:
+                                    const Color(
+                                        0xFF6F2DBD),
+                                fontWeight:
+                                    FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(width: 15),
+
+                    SizedBox(
+                      width: 140,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: canRedeem
+                            ? () => redeemReward(
+                                reward['id'])
+                            : null,
+                        style:
+                            ElevatedButton.styleFrom(
+                          backgroundColor:
+                              canRedeem
+                                  ? const Color(
+                                      0xFF6F2DBD)
+                                  : Colors
+                                      .grey.shade300,
+                          shape:
+                              RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius
+                                    .circular(30),
+                          ),
+                        ),
+                        child: Text(
+                          canRedeem
+                              ? "REDEEM"
+                              : "+${reward['points_required'] - totalPoints}",
+                          style:
+                              GoogleFonts.poppins(
+                            color: canRedeem
+                                ? Colors.yellow
+                                : Colors.black54,
+                            fontWeight:
+                                FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+        );
+      },
     ),
-  )
-).toList(),
+  );
+}).toList(),
     ],
   ),
 ),
