@@ -261,57 +261,49 @@ setState(() {
               ),
               const SizedBox(
                   height: 15),
-              Expanded(
-                child: ListView.builder(
-                  itemCount:
-                      activities.length,
-                  itemBuilder:
-                      (context, index) {
-                    final item =
-                        activities[index];
+         Expanded(
+  child: activities.isEmpty
+      ? const Center(
+          child: Text(
+            "No activity found",
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey,
+            ),
+          ),
+        )
+      : ListView.builder(
+          itemCount: activities.length,
+          itemBuilder: (context, index) {
+            final item = activities[index];
+            final points = item['points'];
 
-                    final points =
-                        item['points'];
-
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            points >= 0
-                                ? Colors.green
-                                : Colors.red,
-                        child: Icon(
-                          points >= 0
-                              ? Icons.add
-                              : Icons.remove,
-                          color:
-                              Colors.white,
-                        ),
-                      ),
-                      title: Text(
-                        item['title'] ??
-                            '',
-                      ),
-                      subtitle: Text(
-                        item['description'] ??
-                            '',
-                      ),
-                      trailing: Text(
-                        "${points > 0 ? '+' : ''}$points",
-                        style: TextStyle(
-                          color:
-                              points > 0
-                                  ? Colors
-                                      .green
-                                  : Colors.red,
-                          fontWeight:
-                              FontWeight
-                                  .bold,
-                        ),
-                      ),
-                    );
-                  },
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundColor:
+                    points >= 0 ? Colors.green : Colors.red,
+                child: Icon(
+                  points >= 0
+                      ? Icons.add
+                      : Icons.remove,
+                  color: Colors.white,
                 ),
               ),
+              title: Text(item['title'] ?? ''),
+              subtitle: Text(item['description'] ?? ''),
+              trailing: Text(
+                "${points > 0 ? '+' : ''}$points",
+                style: TextStyle(
+                  color: points > 0
+                      ? Colors.green
+                      : Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            );
+          },
+        ),
+),
             ],
           ),
         );
