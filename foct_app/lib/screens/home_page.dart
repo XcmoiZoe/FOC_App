@@ -911,14 +911,63 @@ Future<void> redeemReward(int rewardId) async {
                       ),
                       const SizedBox(
                           height: 12),
-                      Text(
-                        "${nextReward - totalPoints} PTS to next reward",
-                        style:
-                            GoogleFonts
-                                .poppins(
-                          color: Colors.grey,
-                        ),
-                      ),
+                     Builder(
+  builder: (_) {
+    final availableRewards = rewards
+        .where((r) => totalPoints >= r['points_required'])
+        .toList();
+
+    if (availableRewards.isEmpty) {
+      final next = rewards
+          .where((r) => r['points_required'] > totalPoints)
+          .toList();
+
+      if (next.isEmpty) {
+        return const SizedBox();
+      }
+
+      next.sort((a, b) => (a['points_required'] as int)
+          .compareTo(b['points_required'] as int));
+
+      final nextReward = next.first;
+
+      return Text(
+        "${nextReward['points_required'] - totalPoints} PTS to unlock ${nextReward['title']}",
+        style: GoogleFonts.poppins(
+          color: Colors.grey,
+        ),
+      );
+    }
+
+    availableRewards.sort((a, b) =>
+        (b['points_required'] as int)
+            .compareTo(a['points_required'] as int));
+
+    return Column(
+      children: [
+        Text(
+          "🎉 Ready to Redeem",
+          style: GoogleFonts.poppins(
+            color: Colors.green,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          availableRewards
+              .take(3)
+              .map((e) => e['title'])
+              .join(", "),
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            color: Colors.grey[700],
+            fontSize: 13,
+          ),
+        ),
+      ],
+    );
+  },
+),
                     ],
                   ),
                 ),
