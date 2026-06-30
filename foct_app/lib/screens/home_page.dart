@@ -29,9 +29,25 @@ class _HomePageState extends State<HomePage>
 
   late AnimationController _spinController;
   bool _isSpinning = false;
-  final int nextReward = 5000;
   int earnedPoints = 0;
+Map<String, dynamic>? getNextReward() {
+  if (rewards.isEmpty) return null;
 
+  final sorted = [...rewards];
+
+  sorted.sort(
+    (a, b) => (a['points_required'] as int)
+        .compareTo(b['points_required'] as int),
+  );
+
+  for (final reward in sorted) {
+    if (reward['points_required'] > totalPoints) {
+      return reward;
+    }
+  }
+
+  return null;
+}
   void showRoulettePopup() {
     // Sectors used by the client. The server should return one of these values.
     final sectors = <int>[10, 25, 50, 100, 200, 25, 10, 50];
@@ -618,9 +634,17 @@ Future<void> redeemReward(int rewardId) async {
 }
   @override
   Widget build(BuildContext context) {
-    final double progress =
-    (totalPoints / nextReward)
-        .clamp(0.0, 1.0);
+   final nextReward = getNextReward();
+
+final int goal =
+    nextReward == null
+        ? totalPoints
+        : nextReward['points_required'];
+
+final double progress =
+    goal == 0
+        ? 1.0
+        : (totalPoints / goal).clamp(0.0, 1.0);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F7),
@@ -883,7 +907,7 @@ Future<void> redeemReward(int rewardId) async {
                                 .spaceBetween,
                         children: [
                           Text(
-                            "$totalPoints / $nextReward PTS",
+                            "${NumberFormat('#,###').format(totalPoints)} / ${NumberFormat('#,###').format(goal)} PTS",
                             style:
                                 GoogleFonts
                                     .poppins(
