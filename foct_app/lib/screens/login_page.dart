@@ -15,10 +15,8 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController identifierController =
-      TextEditingController();
-  final TextEditingController codeController =
-      TextEditingController();
+  final TextEditingController identifierController = TextEditingController();
+  final TextEditingController codeController = TextEditingController();
 
   bool isLoading = false;
   bool obscurePassword = true;
@@ -45,7 +43,7 @@ class _LoginPageState extends State<LoginPage> {
       final res = await http.post(
         Uri.parse("http://54.255.150.15/mobile-api/login"),
         headers: {"Content-Type": "application/json"},
-       body: jsonEncode({
+        body: jsonEncode({
           "member_code": memberCode,
           "code": code,
         }),
@@ -61,30 +59,21 @@ class _LoginPageState extends State<LoginPage> {
 
       final data = jsonDecode(res.body);
 
-     if (data["success"] == true) {
-  final prefs =
-      await SharedPreferences.getInstance();
+      if (data["success"] == true) {
+        final prefs = await SharedPreferences.getInstance();
 
-  await prefs.setString(
-    "token",
-    data["token"] ?? "",
-  );
+        await prefs.setString("token", data["token"] ?? "");
+        await prefs.setString("member_code", memberCode);
 
-  await prefs.setString(
-    "member_code",
-    memberCode,
-  );
+        if (!mounted) return;
 
-  if (!mounted) return;
-
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(
-      builder: (_) =>
-          const MainNavigation(),
-    ),
-  );
-} else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MainNavigation(memberCode: memberCode),
+          ),
+        );
+      } else {
         setState(() {
           error = data["message"] ?? "Login Failed";
         });
@@ -126,8 +115,7 @@ class _LoginPageState extends State<LoginPage> {
         obscureText: obscure,
         decoration: InputDecoration(
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 18),
+          contentPadding: const EdgeInsets.symmetric(vertical: 18),
           prefixIcon: Icon(
             icon,
             color: Colors.grey,
@@ -148,250 +136,205 @@ class _LoginPageState extends State<LoginPage> {
       body: AppBackground(
         child: SafeArea(
           child: SingleChildScrollView(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
-            children: [
-              const SizedBox(height: 15),
-
-              Align(
-                alignment: Alignment.centerLeft,
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              const Text(
-                "Login",
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              const Text(
-                "Welcome back! Please login\n to continue.",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.black54,
-                  fontSize: 15,
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-              buildTextField(
-                controller: identifierController,
-                hint: "Member Code",
-                icon: Icons.person_outline,
-              ),
-
-              const SizedBox(height: 16),
-
-              buildTextField(
-                controller: codeController,
-                hint: "Login Code",
-                icon: Icons.lock_outline,
-                obscure: obscurePassword,
-                suffix: IconButton(
-                  icon: Icon(
-                    obscurePassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: Colors.grey,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      obscurePassword = !obscurePassword;
-                    });
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () async {
-                    final result = await Navigator.push<Map<String, String>>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ForgotPasswordPage(),
-                      ),
-                    );
-
-                    final memberCode = result?["member_code"];
-                    if (memberCode != null && memberCode.isNotEmpty) {
-                      identifierController.text = memberCode;
-                    }
-                  },
-                  child: const Text(
-                    "Forgot Password?",
-                    style: TextStyle(
-                      color: Color(0xFF7B2CBF),
-                      fontWeight: FontWeight.w600,
-                    ),
+              children: [
+                const SizedBox(height: 15),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back_ios),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
                   ),
                 ),
-              ),
-
-              if (error != null)
-                Padding(
-                  padding:
-                      const EdgeInsets.only(bottom: 12),
-                  child: Text(
-                    error!,
-                    style: const TextStyle(
-                      color: Colors.red,
-                    ),
+                const SizedBox(height: 20),
+                const Text(
+                  "Login",
+                  style: TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed:
-                      isLoading ? null : login,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        const Color(0xFF7B2CBF),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: isLoading
-                      ? const CircularProgressIndicator(
-                          color: Colors.white,
-                        )
-                      : const Text(
-                          "LOGIN",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight:
-                                FontWeight.bold,
-                          ),
-                        ),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              Row(
-                children: const [
-                  Expanded(child: Divider()),
-                  Padding(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 10),
-                    child: Text("or"),
-                  ),
-                  Expanded(child: Divider()),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: Image.network(
-                    "https://cdn-icons-png.flaticon.com/512/2991/2991148.png",
-                    height: 22,
-                  ),
-                  label: const Text(
-                    "Continue with Google",
-                    style: TextStyle(
-                      color: Colors.black87,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                      color: Colors.grey.shade300,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(12),
-                    ),
+                const SizedBox(height: 10),
+                const Text(
+                  "Welcome back! Please login\n to continue.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 15,
                   ),
                 ),
-              ),
-
-              const SizedBox(height: 12),
-
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.facebook,
-                    color: Colors.blue,
-                  ),
-                  label: const Text(
-                    "Continue with Facebook",
-                    style: TextStyle(
-                      color: Colors.black87,
+                const SizedBox(height: 40),
+                buildTextField(
+                  controller: identifierController,
+                  hint: "Member Code",
+                  icon: Icons.person_outline,
+                ),
+                const SizedBox(height: 16),
+                buildTextField(
+                  controller: codeController,
+                  hint: "Login Code",
+                  icon: Icons.lock_outline,
+                  obscure: obscurePassword,
+                  suffix: IconButton(
+                    icon: Icon(
+                      obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: Colors.grey,
                     ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(
-                      color: Colors.grey.shade300,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(12),
-                    ),
+                    onPressed: () {
+                      setState(() {
+                        obscurePassword = !obscurePassword;
+                      });
+                    },
                   ),
                 ),
-              ),
-
-              const SizedBox(height: 20),
-
-              Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    "Don't have an account? ",
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () async {
+                      final result = await Navigator.push<Map<String, String>>(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              const SignupPage(),
+                          builder: (_) => const ForgotPasswordPage(),
                         ),
                       );
+
+                      final memberCode = result?["member_code"];
+                      if (memberCode != null && memberCode.isNotEmpty) {
+                        identifierController.text = memberCode;
+                      }
                     },
                     child: const Text(
-                      "Sign Up",
+                      "Forgot Password?",
                       style: TextStyle(
                         color: Color(0xFF7B2CBF),
-                        fontWeight:
-                            FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                ],
-              ),
-
-              const SizedBox(height: 150),
-            ],
-          ),),
+                ),
+                if (error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      error!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : login,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7B2CBF),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: isLoading
+                        ? const CircularProgressIndicator(
+                            color: Colors.white,
+                          )
+                        : const Text(
+                            "LOGIN",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: const [
+                    Expanded(child: Divider()),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Text("or"),
+                    ),
+                    Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    onPressed: () {},
+                    icon: Image.network(
+                      "https://cdn-icons-png.flaticon.com/512/2991/2991148.png",
+                      height: 22,
+                    ),
+                    label: const Text(
+                      "Continue with Google",
+                      style: TextStyle(color: Colors.black87),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(
+                      Icons.facebook,
+                      color: Colors.blue,
+                    ),
+                    label: const Text(
+                      "Continue with Facebook",
+                      style: TextStyle(color: Colors.black87),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("Don't have an account? "),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SignupPage(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "Sign Up",
+                        style: TextStyle(
+                          color: Color(0xFF7B2CBF),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 150),
+              ],
+            ),
+          ),
         ),
       ),
     );

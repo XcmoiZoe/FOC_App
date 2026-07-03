@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -41,7 +40,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (!mounted) return;
 
-    // No token -> Login
     if (token == null || memberCode.isEmpty) {
       Navigator.pushReplacement(
         context,
@@ -61,12 +59,11 @@ class _SplashScreenState extends State<SplashScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => const MainNavigation(),
+            builder: (_) => MainNavigation(memberCode: memberCode),
           ),
         );
       } else {
         await prefs.clear();
-
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -94,13 +91,10 @@ class _SplashScreenState extends State<SplashScreen> {
           opacity: opacity,
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 30,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 30),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo Container
                   Container(
                     padding: const EdgeInsets.all(25),
                     decoration: BoxDecoration(
@@ -108,8 +102,7 @@ class _SplashScreenState extends State<SplashScreen> {
                       borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              Colors.deepPurple.withOpacity(0.12),
+                          color: Colors.deepPurple.withOpacity(0.12),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -118,23 +111,16 @@ class _SplashScreenState extends State<SplashScreen> {
                     child: Image.asset(
                       "assets/logo.png",
                       width: 150,
-                      errorBuilder:
-                          (
-                            context,
-                            error,
-                            stackTrace,
-                          ) {
-                            return const Icon(
-                              Icons.wifi,
-                              size: 120,
-                              color: Color(0xFF5B1FA6),
-                            );
-                          },
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.wifi,
+                          size: 120,
+                          color: Color(0xFF5B1FA6),
+                        );
+                      },
                     ),
                   ),
-
                   const SizedBox(height: 40),
-
                   const Text(
                     "YES! Rewards",
                     style: TextStyle(
@@ -143,9 +129,7 @@ class _SplashScreenState extends State<SplashScreen> {
                       color: Color(0xFF5B1FA6),
                     ),
                   ),
-
                   const SizedBox(height: 12),
-
                   const Text(
                     "Watch Ads • Earn Points • Redeem Rewards",
                     textAlign: TextAlign.center,
@@ -155,9 +139,7 @@ class _SplashScreenState extends State<SplashScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-
                   const SizedBox(height: 45),
-
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
@@ -165,8 +147,7 @@ class _SplashScreenState extends State<SplashScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF4F0FA),
-                      borderRadius:
-                          BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
@@ -174,28 +155,23 @@ class _SplashScreenState extends State<SplashScreen> {
                         SizedBox(
                           width: 22,
                           height: 22,
-                          child:
-                              CircularProgressIndicator(
-                                strokeWidth: 3,
-                                color: Color(0xFFFF9800),
-                              ),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            color: Color(0xFFFF9800),
+                          ),
                         ),
                         SizedBox(width: 15),
                         Text(
                           "Loading Rewards...",
                           style: TextStyle(
-                            fontWeight:
-                                FontWeight.w600,
-                            color:
-                                Color(0xFF5B1FA6),
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF5B1FA6),
                           ),
                         ),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 80),
-
                   const Text(
                     "Powered by YES! FREE WIFI",
                     style: TextStyle(
@@ -204,9 +180,7 @@ class _SplashScreenState extends State<SplashScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
                   const Text(
                     "Version 1.0.0",
                     style: TextStyle(
