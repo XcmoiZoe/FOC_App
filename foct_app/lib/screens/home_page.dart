@@ -112,16 +112,21 @@ void showRoulettePopup() {
       selectedIndex = _getTargetIndex(reward);
 
       final int fullSpins = 6;
-      final double targetTurns = fullSpins + ((selectedIndex + 0.5) / sectors.length);
 
+final double sectorSize = 1 / sectors.length;
+
+// Pointer is at the top (12 o'clock)
+final double targetTurns =
+    fullSpins +
+    (1 - ((selectedIndex + 0.5) * sectorSize));
       _spinController
-        ..duration = const Duration(seconds: 4)
-        ..value = 0.0;
+  ..duration = const Duration(seconds: 10)
+  ..value = 0.0;
 
-      await _spinController.animateTo(
-        targetTurns,
-        curve: Curves.easeOutCubic,
-      );
+await _spinController.animateTo(
+  targetTurns,
+  curve: Curves.decelerate,
+);
 
       if (!mounted) return;
 
