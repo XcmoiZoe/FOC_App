@@ -48,148 +48,331 @@ Map<String, dynamic>? getNextReward() {
 
   return null;
 }
-  void showRoulettePopup() {
-    // Sectors used by the client. The server should return one of these values.
-    final sectors = <int>[10, 25, 50, 100, 200, 25, 10, 50];
+void showRoulettePopup() {
+  final sectors = <dynamic>["Try again", 5, 10, 20, 50];
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) {
-        double wheelTurns() => _spinController.value;
+  int selectedIndex = 0;
+  bool loading = false;
 
-        return StatefulBuilder(
-          builder: (context, setStateSB) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              title: const Text("🎉 Welcome Bonus"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text("Spin the roulette to win points!"),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: 220,
-                    height: 220,
-                    child: AnimatedBuilder(
-                      animation: _spinController,
-                      builder: (_, __) {
-                        return Transform.rotate(
-                          angle: wheelTurns() * 2 * 3.1415926535,
-                          child: CustomPaint(
-                            painter: _WheelPainter(sectors),
-                          ),
-                        );
-                      },
-                    ),
+  int _getTargetIndex(dynamic reward) {
+    if (reward == "Try again") return 0;
+    final idx = sectors.indexWhere((e) => e.toString() == reward.toString());
+    return idx >= 0 ? idx : 0;
+  }
+
+  Future<void> _spinAndShowResult(StateSetter setStateSB) async {
+    if (_isSpinning) return;
+
+    setStateSB(() {
+      loading = true;
+      _isSpinning = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      if (token == null || token.isEmpty) {
+        setStateSB(() {
+          loading = false;
+          _isSpinning = false;
+        });
+        return;
+      }
+
+      final resp = await http.post(
+        Uri.parse('http://54.255.150.15/mobile-api/roulette'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      final Map<String, dynamic> data = jsonDecode(resp.body);
+
+      if (data['success'] != true) {
+        setStateSB(() {
+          loading = false;
+          _isSpinning = false;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? 'Spin failed'),
+            ),
+          );
+        }
+        return;
+      }
+
+      final dynamic reward = data['reward'];
+      final int newTotal = (data['total_points'] as num).toInt();
+
+      selectedIndex = _getTargetIndex(reward);
+
+      final int fullSpins = 6;
+      final double targetTurns = fullSpins + ((selectedIndex + 0.5) / sectors.length);
+
+      _spinController
+        ..duration = const Duration(seconds: 4)
+        ..value = 0.0;
+
+      await _spinController.animateTo(
+        targetTurns,
+        curve: Curves.easeOutCubic,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        earnedPoints = reward is num ? reward.toInt() : 0;
+        totalPoints = newTotal;
+        _isSpinning = false;
+      });
+
+      Navigator.of(context).pop();
+
+      showRewardDialog(reward);
+
+      await loadUser();
+      await loadRecentActivity();
+      await loadActivityCount();
+
+      _spinController.value = targetTurns % 1;
+    } catch (e) {
+      setStateSB(() {
+        loading = false;
+        _isSpinning = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Roulette error: $e'),
+          ),
+        );
+      }
+    }
+  }
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (context, setStateSB) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF7C3AED), Color(0xFF4C1D95), Color(0xFF2E1065)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(28),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.25),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
                   ),
-                  const SizedBox(height: 8),
-                  const Icon(Icons.arrow_drop_down, size: 36, color: Colors.black),
                 ],
               ),
-              actions: [
-                ElevatedButton(
-                  onPressed: _isSpinning
-                      ? null
-                      : () async {
-                          setStateSB(() {
-                            _isSpinning = true;
-                          });
-
-                          // Ask server for the reward first so we can animate to that sector
-                                                    final prefs =
-                                await SharedPreferences.getInstance();
-
-                            final token =
-                                prefs.getString('token');
-
-                            final resp = await http.post(
-                              Uri.parse(
-                                'http://54.255.150.15/mobile-api/roulette',
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.card_giftcard, color: Colors.amber),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Daily Roulette',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _isSpinning ? null : () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    'Spin to win points or try again',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Stack(
+                    alignment: Alignment.topCenter,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: AnimatedBuilder(
+                          animation: _spinController,
+                          builder: (_, __) {
+                            return Transform.rotate(
+                              angle: _spinController.value * 2 * math.pi,
+                              child: CustomPaint(
+                                painter: _WheelPainter(sectors),
+                                child: const SizedBox(width: 270, height: 270),
                               ),
-                              headers: {
-                                'Authorization':
-                                    'Bearer $token',
-                                'Content-Type':
-                                    'application/json',
-                              },
                             );
-
-                          final Map data = jsonDecode(resp.body);
-                          if (data['success'] != true) {
-                            setStateSB(() => _isSpinning = false);
-                            return;
-                          }
-
-                          final int reward = (data['reward'] as num).toInt();
-                          final int newTotal = (data['total_points'] as num).toInt();
-
-                          // Find target sector index. If not found, default to 0.
-                          int targetIndex = sectors.indexOf(reward);
-                          if (targetIndex < 0) targetIndex = 0;
-
-                          // Compute target turns so wheel decelerates and lands on targetIndex
-                          final spins = 6; // full spins before landing
-                          final targetTurns = spins + (targetIndex / sectors.length);
-
-                          // Ensure controller can animate to targetTurns by setting an ample upperBound
-                          _spinController.duration = const Duration(seconds: 4);
-                          _spinController.animateTo(
-                            targetTurns,
-                            curve: Curves.decelerate,
-                          ).whenComplete(() async {
-                            setState(() {
-                              earnedPoints = reward;
-                              _isSpinning = false;
-                            });
-
-                            Navigator.pop(context);
-
-                            showRewardDialog(reward);
-
-                            await loadUser();
-                            await loadRecentActivity();
-                            await loadActivityCount();
-                            _spinController.value =
-                                targetTurns % 1;
-                          });
-                        },
-                  child: Text(_isSpinning ? 'SPINNING...' : 'SPIN NOW'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void showRewardDialog(int reward) {
-    showDialog(
-      context: context,
-      builder: (_) {
-        return AlertDialog(
-          title: const Text(
-            "🎉 Congratulations!",
-          ),
-          content: Text(
-            "You won $reward points!",
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text("OK"),
+                          },
+                        ),
+                      ),
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: const BoxDecoration(
+                          color: Colors.amber,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_drop_down,
+                          size: 34,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      _isSpinning
+                          ? 'Spinning...'
+                          : 'Tap spin to start your daily chance',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: (_isSpinning || loading)
+                          ? null
+                          : () => _spinAndShowResult(setStateSB),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFBBF24),
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 6,
+                      ),
+                      child: loading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.black,
+                              ),
+                            )
+                          : Text(
+                              _isSpinning ? 'SPINNING...' : 'SPIN NOW',
+                              style: GoogleFonts.poppins(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        );
-      },
-    );
-  }
+          );
+        },
+      );
+    },
+  );
+}
 
+void showRewardDialog(dynamic reward) {
+  final isTryAgain = reward.toString() == 'Try again';
+
+  showDialog(
+    context: context,
+    builder: (_) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isTryAgain
+                  ? [const Color(0xFF374151), const Color(0xFF111827)]
+                  : [const Color(0xFF16A34A), const Color(0xFF14532D)],
+            ),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isTryAgain ? Icons.refresh : Icons.celebration,
+                color: Colors.white,
+                size: 56,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                isTryAgain ? 'Try Again' : 'Congratulations!',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isTryAgain
+                    ? 'No points this time. Come back tomorrow.'
+                    : 'You won $reward points!',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  color: Colors.white70,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 18),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
 @override
 void initState() {
   super.initState();
@@ -1363,9 +1546,9 @@ Container(
     );
   }
 }
-
 class _WheelPainter extends CustomPainter {
-  final List<int> sectors;
+  final List<dynamic> sectors;
+
   _WheelPainter(this.sectors);
 
   @override
