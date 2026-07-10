@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../theme.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,8 +19,7 @@ class RedeemPage extends StatefulWidget {
 
 class _RedeemPageState extends State<RedeemPage> {
   static const String baseUrl = 'http://54.255.150.15/mobile-api';
-  static const Color primaryPurple = Color(0xFF6A1B9A);
-  static const Color accentOrange = Color(0xFFFF8F00);
+  // use centralized theme colors
 
   final TextEditingController searchController = TextEditingController();
   String selectedCategory = 'All';
@@ -205,11 +206,9 @@ class _RedeemPageState extends State<RedeemPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Redeem Rewards'),
-        backgroundColor: primaryPurple,
-        foregroundColor: Colors.white,
+        title: Text('Redeem Rewards', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
       ),
-      backgroundColor: const Color(0xFFF8F5FC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: FutureBuilder<RewardResponse>(
         future: rewardsFuture,
         builder: (context, snapshot) {
@@ -288,7 +287,7 @@ class _RedeemPageState extends State<RedeemPage> {
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF6A1B9A), Color(0xFFFF8F00)],
+                        colors: [AppTheme.primaryPurple, AppTheme.accentAmber],
                       ),
                       borderRadius: BorderRadius.circular(18),
                     ),
@@ -461,10 +460,9 @@ class RewardCard extends StatelessWidget {
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+                child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      canRedeem ? const Color(0xFFFF8F00) : Colors.grey,
+                  backgroundColor: canRedeem ? AppTheme.accentAmber : Colors.grey,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),

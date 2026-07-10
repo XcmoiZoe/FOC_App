@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:google_fonts/google_fonts.dart';
+import '../theme.dart';
 
 class AboutPage extends StatefulWidget {
   const AboutPage({super.key});
@@ -63,11 +65,8 @@ class _AboutPageState extends State<AboutPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("About"),
-        backgroundColor: primaryPurple,
-      ),
-      backgroundColor: const Color(0xFFF8F5FC),
+      appBar: AppBar(title: Text("About", style: GoogleFonts.poppins(fontWeight: FontWeight.w700))),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -80,32 +79,20 @@ class _AboutPageState extends State<AboutPage> {
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: accentOrange.withOpacity(0.4),
+                      color: AppTheme.accentAmber.withOpacity(0.4),
                       blurRadius: 20,
                     )
                   ],
                 ),
-                child: Image.asset(
-                  'assets/logo.png',
-                  width: 100,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(Icons.image, size: 80);
-                  },
-                ),
+                child: Image.asset('assets/logo.png', width: 100, errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 80)),
               ),
               const SizedBox(height: 25),
-              const Text(
-                "Yes Ads Rewards",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: primaryPurple,
-                ),
-              ),
+              Text("Yes Ads Rewards", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryPurple)),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 "Yes Ads Rewards is a smart advertising platform where users earn points by engaging with ads and redeem them for exciting rewards.\n\nBoost visibility. Earn rewards. Grow together.",
                 textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(),
               ),
               const SizedBox(height: 25),
               const Align(

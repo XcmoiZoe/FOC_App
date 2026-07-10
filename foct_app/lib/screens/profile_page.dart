@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:google_fonts/google_fonts.dart';
+import '../theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../screens/login_page.dart';
@@ -123,16 +125,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryPurple =
-        Color(0xFF6A1B9A);
-
     return Scaffold(
-      backgroundColor:
-          const Color(0xFFF8F5FC),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Profile"),
-        backgroundColor:
-            primaryPurple,
+        title: Text("Profile", style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
       ),
       body: isLoading
           ? const Center(
@@ -170,41 +166,21 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                     child: Column(
                       children: [
-                        const CircleAvatar(
+                        CircleAvatar(
                           radius: 45,
-                          backgroundColor:
-                              Colors.white,
+                          backgroundColor: Colors.white,
                           child: Icon(
                             Icons.person,
                             size: 50,
-                            color: Color(
-                                0xFF6A1B9A),
+                            color: AppTheme.primaryPurple,
                           ),
                         ),
                         const SizedBox(
                             height: 10),
-                        Text(
-                          name,
-                          style:
-                              const TextStyle(
-                            color:
-                                Colors.white,
-                            fontSize: 20,
-                            fontWeight:
-                                FontWeight
-                                    .bold,
-                          ),
-                        ),
+                        Text(name, style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                         const SizedBox(
                             height: 5),
-                        Text(
-                          memberCode,
-                          style:
-                              const TextStyle(
-                            color: Colors
-                                .white70,
-                          ),
-                        ),
+                        Text(memberCode, style: GoogleFonts.poppins(color: Colors.white70)),
                       ],
                     ),
                   ),

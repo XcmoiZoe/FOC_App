@@ -2,7 +2,7 @@ name: foct_app
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ^3.11.4
@@ -21,6 +21,7 @@ dependencies:
   shared_preferences: ^2.5.5
   http: ^1.6.0
   url_launcher: ^6.3.2
+  flutter_svg: ^2.2.0
 
 dev_dependencies:
   flutter_test:
@@ -35,6 +36,9 @@ flutter:
   assets:
     - assets/logo.png
     - assets/footer.png
+    - assets/robot.png
+    - assets/logo1.png
+    - assets/footer.svg
 
 flutter_launcher_icons:
   android: true

@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:google_fonts/google_fonts.dart';
+import '../theme.dart';
 
 import '../widgets/app_background.dart';
 
@@ -117,22 +119,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text(
-                  "Forgot Password",
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text("Forgot Password", style: GoogleFonts.poppins(fontSize: 30, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
-                const Text(
-                  "Enter your phone number and we will send a 6 digit OTP.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.black54,
-                    fontSize: 15,
-                  ),
-                ),
+                Text("Enter your phone number and we will send a 6 digit OTP.", textAlign: TextAlign.center, style: GoogleFonts.poppins(color: Colors.black54, fontSize: 15)),
                 const SizedBox(height: 40),
                 Container(
                   decoration: BoxDecoration(
@@ -181,7 +170,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   child: ElevatedButton(
                     onPressed: isLoading ? null : sendOtp,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7B2CBF),
+                      backgroundColor: AppTheme.primaryPurple,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -191,14 +180,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         ? const CircularProgressIndicator(
                             color: Colors.white,
                           )
-                        : const Text(
+                        : Text(
                             "SEND LOGIN CODE",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
+                            style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
               ],

@@ -44,7 +44,7 @@ class _MainNavigationState extends State<MainNavigation> {
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           type: BottomNavigationBarType.fixed,
-          selectedItemColor: const Color(0xFFFF6F00),
+          selectedItemColor: const Color(0xFF7B1FA2),
           unselectedItemColor: Colors.grey,
           backgroundColor: Colors.white,
           elevation: 10,
@@ -62,8 +62,8 @@ class _MainNavigationState extends State<MainNavigation> {
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.info),
-              label: 'Learn',
+              icon: Icon(Icons.info_outline),
+              label: 'About',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.card_giftcard),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class AppBackground extends StatelessWidget {
   final Widget child;
@@ -11,29 +12,27 @@ class AppBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const footerHeight = 130.0;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Stack(
+    return Material(
+      color: Colors.white,
+      child: Stack(
         fit: StackFit.expand,
         children: [
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
+          Align(
+            alignment: Alignment.bottomCenter,
             child: IgnorePointer(
-              child: Image.asset(
-                'assets/footer.png',
+              child: SvgPicture.asset(
+                'assets/footer.svg',
                 fit: BoxFit.fitWidth,
-                height: footerHeight,
-                alignment: Alignment.bottomCenter,
+                width: MediaQuery.of(context).size.width,
               ),
             ),
           ),
 
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.only(bottom: footerHeight),
+              padding: EdgeInsets.only(bottom: footerHeight + bottomPadding),
               child: child,
             ),
           ),

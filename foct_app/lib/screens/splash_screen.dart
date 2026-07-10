@@ -1,197 +1,116 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../navigation/main_navigation.dart';
-import '../services/user_profile_service.dart';
+import '../widgets/purple_background.dart';
+import 'auth_choice_page.dart';
 import 'login_page.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  /// If true the splash will automatically navigate to the login page after [delaySeconds].
+  final bool autoNavigate;
+
+  /// Show or hide the robot image.
+  final bool showRobot;
+
+  /// Delay before navigation when [autoNavigate] is true.
+  final int delaySeconds;
+
+  const SplashScreen({
+    super.key,
+    this.autoNavigate = true,
+    this.showRobot = true,
+    this.delaySeconds = 3,
+  });
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  double opacity = 0;
-
   @override
   void initState() {
     super.initState();
+    if (widget.autoNavigate) {
+      Future.delayed(Duration(seconds: widget.delaySeconds), () async {
+        if (!mounted) return;
 
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        setState(() {
-          opacity = 1;
-        });
-      }
-    });
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('token');
+        final memberCode = prefs.getString('member_code');
 
-    startApp();
-  }
-
-  Future<void> startApp() async {
-    await Future.delayed(const Duration(seconds: 3));
-
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("token");
-    final memberCode = prefs.getString("member_code") ?? "";
-
-    if (!mounted) return;
-
-    if (token == null || memberCode.isEmpty) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const LoginPage(),
-        ),
-      );
-      return;
-    }
-
-    try {
-      final profileLoaded = await UserProfileService.fetchAndSaveProfile(
-        memberCode: memberCode,
-      );
-
-      if (profileLoaded) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => MainNavigation(memberCode: memberCode),
-          ),
-        );
-      } else {
-        await prefs.clear();
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const LoginPage(),
-          ),
-        );
-      }
-    } catch (e) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const LoginPage(),
-        ),
-      );
+        if (token != null && token.isNotEmpty && memberCode != null && memberCode.isNotEmpty) {
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MainNavigation(memberCode: memberCode),
+            ),
+          );
+        } else {
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const AuthChoicePage()),
+          );
+        }
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 1200),
-          opacity: opacity,
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(25),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF4F0FA),
-                      borderRadius: BorderRadius.circular(30),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.deepPurple.withOpacity(0.12),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Image.asset(
-                      "assets/logo.png",
-                      width: 150,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(
-                          Icons.wifi,
-                          size: 120,
-                          color: Color(0xFF5B1FA6),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  const Text(
-                    "YES! Rewards",
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF5B1FA6),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "Watch Ads • Earn Points • Redeem Rewards",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 45),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 15,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF4F0FA),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 3,
-                            color: Color(0xFFFF9800),
-                          ),
-                        ),
-                        SizedBox(width: 15),
-                        Text(
-                          "Loading Rewards...",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF5B1FA6),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 80),
-                  const Text(
-                    "Powered by YES! FREE WIFI",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    "Version 1.0.0",
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
+        child: Stack(
+          children: [
+            // Background
+            const PurpleBackground(),
+
+            // Logo
+            Positioned(
+              top: 70,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Image.asset(
+                  "assets/logo1.png",
+                  width: screenWidth * 0.70,
+                ),
               ),
             ),
-          ),
+
+            // Footer (Always at bottom)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Opacity(
+                opacity: 0.35,
+                child: SvgPicture.asset(
+                  "assets/footer.svg",
+                  width: screenWidth,
+                  fit: BoxFit.fitWidth,
+                ),
+              ),
+            ),
+
+            // Robot (position dynamically based on screen height)
+            if (widget.showRobot)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: screenHeight * 0.18, // responsive spacing above footer/skyline
+                child: Center(
+                  child: Image.asset(
+                    "assets/robot.png",
+                    width: screenWidth * 0.52,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

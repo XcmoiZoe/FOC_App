@@ -1,10 +1,13 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../theme.dart';
 import 'package:http/http.dart' as http;
 
-import '../widgets/app_background.dart';
+import '../widgets/purple_background.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -14,14 +17,13 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
-  final fnameController = TextEditingController();
-  final emailController = TextEditingController();
-  final phoneController = TextEditingController();
-  final addressController = TextEditingController();
+  final TextEditingController fnameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController addressController = TextEditingController();
 
   bool isLoading = false;
   bool agreeTerms = false;
-
   String? message;
 
   Future<void> signup() async {
@@ -34,36 +36,30 @@ class _SignupPageState extends State<SignupPage> {
 
     try {
       final fname = fnameController.text.trim();
-final email = emailController.text.trim();
-final phone = phoneController.text.trim();
-final address = addressController.text.trim();
+      final email = emailController.text.trim();
+      final phone = phoneController.text.trim();
+      final address = addressController.text.trim();
 
-final emailRegex = RegExp(
-  r'^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$',
-);
-
-if (!emailRegex.hasMatch(email)) {
-  setState(() {
-    message = "Please enter a valid email address";
-    isLoading = false;
-  });
-  return;
-}
-
-if (!RegExp(r'^09\d{9}$').hasMatch(phone)) {
-  setState(() {
-    message = "Please enter a valid phone number";
-    isLoading = false;
-  });
-  return;
-}
-
-if (fname.isEmpty ||
-    email.isEmpty ||
-    phone.isEmpty ||
-    address.isEmpty) {
+      final emailRegex = RegExp(r'^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}\$');
+      if (!emailRegex.hasMatch(email)) {
         setState(() {
-          message = "All fields are required";
+          message = 'Please enter a valid email address';
+          isLoading = false;
+        });
+        return;
+      }
+
+      if (!RegExp(r'^09\d{9}\$').hasMatch(phone)) {
+        setState(() {
+          message = 'Please enter a valid phone number';
+          isLoading = false;
+        });
+        return;
+      }
+
+      if (fname.isEmpty || email.isEmpty || phone.isEmpty || address.isEmpty) {
+        setState(() {
+          message = 'All fields are required';
           isLoading = false;
         });
         return;
@@ -71,7 +67,7 @@ if (fname.isEmpty ||
 
       if (!agreeTerms) {
         setState(() {
-          message = "Please accept Terms & Conditions";
+          message = 'Please accept Terms & Conditions';
           isLoading = false;
         });
         return;
@@ -79,50 +75,38 @@ if (fname.isEmpty ||
 
       final res = await http
           .post(
-            Uri.parse(
-              "http://54.255.150.15/mobile-api/signup",
-            ),
-            headers: {
-              "Content-Type": "application/json",
-            },
-          body: jsonEncode({
-            "name": fname,
-            "email": email,
-            "phone": phone,
-            "address": address,
-          }),
+            Uri.parse('http://54.255.150.15/mobile-api/signup'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'name': fname,
+              'email': email,
+              'phone': phone,
+              'address': address,
+            }),
           )
-          .timeout(
-            const Duration(seconds: 15),
-          );
+          .timeout(const Duration(seconds: 15));
 
-   final data = jsonDecode(res.body);
+      final data = jsonDecode(res.body);
 
-if (res.statusCode == 409) {
-  setState(() {
-    message = data["message"] ??
-        "Email or phone already exists";
-    isLoading = false;
-  });
-  return;
-}
+      if (res.statusCode == 409) {
+        setState(() {
+          message = data['message'] ?? 'Email or phone already exists';
+          isLoading = false;
+        });
+        return;
+      }
 
-if (res.statusCode != 200 &&
-    res.statusCode != 201) {
-  setState(() {
-    message = data["message"] ??
-        "Server Error (${res.statusCode})";
-    isLoading = false;
-  });
-  return;
-}
+      if (res.statusCode != 200 && res.statusCode != 201) {
+        setState(() {
+          message = data['message'] ?? 'Server Error (${res.statusCode})';
+          isLoading = false;
+        });
+        return;
+      }
 
-      if (data["success"] == true) {
-        final memberCode =
-            data["member_code"] ?? "";
-
-        final generatedCode =
-        data["login_code"] ?? "";
+      if (data['success'] == true) {
+        final memberCode = data['member_code'] ?? '';
+        final generatedCode = data['login_code'] ?? '';
 
         if (!mounted) return;
 
@@ -130,89 +114,58 @@ if (res.statusCode != 200 &&
           context: context,
           barrierDismissible: false,
           builder: (_) => AlertDialog(
-            title: const Text(
-              "Account Created",
-            ),
+            title: const Text('Account Created'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Member Code",
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                  ),
+                  'Member Code',
+                  style: TextStyle(color: Colors.grey[600]),
                 ),
                 SelectableText(
                   memberCode,
-                  style: const TextStyle(
-                    fontWeight:
-                        FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "Login Code",
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                  ),
+                  'Login Code',
+                  style: TextStyle(color: Colors.grey[600]),
                 ),
                 SelectableText(
                   generatedCode,
-                  style: const TextStyle(
-                    fontWeight:
-                        FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () {
-                  Clipboard.setData(
-                    ClipboardData(
-                      text:
-                          "$memberCode / $generatedCode",
-                    ),
-                  );
-
-                  ScaffoldMessenger.of(
-                          context)
-                      .showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "Copied to clipboard",
-                      ),
-                    ),
+                  Clipboard.setData(ClipboardData(text: '$memberCode / $generatedCode'));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Copied to clipboard')),
                   );
                 },
-                child: const Text(
-                  "Copy",
-                ),
+                child: const Text('Copy'),
               ),
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
                   Navigator.pop(context);
                 },
-                child: const Text(
-                  "Continue",
-                ),
+                child: const Text('Continue'),
               ),
             ],
           ),
         );
       } else {
         setState(() {
-          message =
-              data["message"] ??
-                  "Signup Failed";
+          message = data['message'] ?? 'Signup Failed';
         });
       }
     } catch (e) {
       setState(() {
-        message = "Error: $e";
+        message = 'Error: $e';
       });
     }
 
@@ -231,11 +184,8 @@ if (res.statusCode != 200 &&
   }) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius:
-            BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.shade300,
-        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: TextField(
         controller: controller,
@@ -243,10 +193,7 @@ if (res.statusCode != 200 &&
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: hint,
-          prefixIcon: Icon(
-            icon,
-            color: Colors.grey,
-          ),
+          prefixIcon: Icon(icon, color: Colors.grey),
         ),
       ),
     );
@@ -263,270 +210,194 @@ if (res.statusCode != 200 &&
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Scaffold(
-      body: AppBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
+      body: Stack(
+        children: [
+          const PurpleBackground(),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: SvgPicture.asset(
+              'assets/footer.svg',
+              fit: BoxFit.fitWidth,
+              width: screenWidth,
+            ),
           ),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-
-              Align(
-                alignment:
-                    Alignment.centerLeft,
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_ios,
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              const Text(
-                "Create Account",
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight:
-                      FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              const Text(
-                "Sign up to earn points\nand enjoy free WiFi.",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.black54,
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              buildField(
-                controller: fnameController,
-                hint: "Full Name",
-                icon:
-                    Icons.person_outline,
-              ),
-
-              const SizedBox(height: 14),
-
-              buildField(
-                controller:
-                    emailController,
-                hint:
-                    "Email Address",
-                icon:
-                    Icons.email_outlined,
-                keyboardType:
-                    TextInputType
-                        .emailAddress,
-              ),
-
-              const SizedBox(height: 14),
-
-              buildField(
-                controller:
-                    phoneController,
-                hint:
-                    "Phone Number",
-                icon:
-                    Icons.phone_outlined,
-                keyboardType:
-                    TextInputType.phone,
-              ),
-
-              const SizedBox(height: 14),
-
-              buildField(
-                controller:
-                    addressController,
-                hint: "Address",
-                icon: Icons
-                    .location_on_outlined,
-              ),
-
-              const SizedBox(height: 15),
-
-              Row(
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: Column(
                 children: [
-                  Checkbox(
-                    value:
-                        agreeTerms,
-                    onChanged:
-                        (value) {
-                      setState(() {
-                        agreeTerms =
-                            value ??
-                                false;
-                      });
-                    },
-                  ),
-                  Expanded(
-                    child: RichText(
-                      text:
-                          const TextSpan(
-                        style:
-                            TextStyle(
-                          color: Colors
-                              .black87,
+                  const SizedBox(height: 24),
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: const Color.fromRGBO(255, 255, 255, 0.96),
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color.fromRGBO(0, 0, 0, 0.12),
+                          blurRadius: 24,
+                          offset: Offset(0, 12),
                         ),
-                        children: [
-                          TextSpan(
-                            text:
-                                "I agree to the ",
-                          ),
-                          TextSpan(
-                            text:
-                                "Terms & Conditions",
-                            style:
-                                TextStyle(
-                              color:
-                                  Color(
-                                0xFF7B1FA2,
-                              ),
-                              fontWeight:
-                                  FontWeight.bold,
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text('Create Account', style: GoogleFonts.poppins(fontSize: 34, fontWeight: FontWeight.bold, color: AppTheme.deepPurple), textAlign: TextAlign.center),
+                        const SizedBox(height: 10),
+                        Text('Sign up to earn points and enjoy free WiFi.', textAlign: TextAlign.center, style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 15)),
+                        const SizedBox(height: 28),
+                        buildField(
+                          controller: fnameController,
+                          hint: 'Full Name',
+                          icon: Icons.person_outline,
+                        ),
+                        const SizedBox(height: 14),
+                        buildField(
+                          controller: emailController,
+                          hint: 'Email Address',
+                          icon: Icons.email_outlined,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 14),
+                        buildField(
+                          controller: phoneController,
+                          hint: 'Phone Number',
+                          icon: Icons.phone_outlined,
+                          keyboardType: TextInputType.phone,
+                        ),
+                        const SizedBox(height: 14),
+                        buildField(
+                          controller: addressController,
+                          hint: 'Address',
+                          icon: Icons.location_on_outlined,
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Checkbox(
+                              value: agreeTerms,
+                              onChanged: (value) {
+                                setState(() {
+                                  agreeTerms = value ?? false;
+                                });
+                              },
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              if (message != null)
-                Padding(
-                  padding:
-                      const EdgeInsets
-                          .only(
-                    bottom: 10,
-                  ),
-                  child: Text(
-                    message!,
-                    style:
-                        const TextStyle(
-                      color:
-                          Colors.red,
-                    ),
-                  ),
-                ),
-
-              const SizedBox(height: 10),
-
-              SizedBox(
-                width:
-                    double.infinity,
-                height: 52,
-                child:
-                    ElevatedButton(
-                  onPressed:
-                      isLoading
-                          ? null
-                          : signup,
-                  style:
-                      ElevatedButton.styleFrom(
-                    backgroundColor:
-                        const Color(
-                      0xFF7B1FA2,
-                    ),
-                    shape:
-                        RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(
-                        12,
-                      ),
-                    ),
-                  ),
-                  child:
-                      isLoading
-                          ? const CircularProgressIndicator(
-                              color: Colors
-                                  .white,
-                            )
-                          : const Text(
-                              "SIGN UP",
-                              style:
-                                  TextStyle(
-                                color:
-                                    Colors.white,
-                                fontWeight:
-                                    FontWeight.bold,
+                            Expanded(
+                              child: Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text('I agree to the ', style: GoogleFonts.poppins(color: Colors.black87)),
+                                  GestureDetector(
+                                    onTap: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (_) => AlertDialog(
+                                          title: const Text('YES! FREE WIFI'),
+                                          content: SingleChildScrollView(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: const [
+                                                Text('By using this WiFi service you agree to the following terms.'),
+                                                SizedBox(height: 16),
+                                                Text('• Free WiFi is intended for personal use only.'),
+                                                SizedBox(height: 8),
+                                                Text('• Watching advertisements may reward you with points.'),
+                                                SizedBox(height: 8),
+                                                Text('• Reward points are not redeemable for cash.'),
+                                                SizedBox(height: 8),
+                                                Text('• Points may expire based on promotional rules.'),
+                                                SizedBox(height: 8),
+                                                Text('• Internet sessions may have usage limits.'),
+                                                SizedBox(height: 8),
+                                                Text('• Abuse or fraudulent activity may suspend your account.'),
+                                                SizedBox(height: 8),
+                                                Text('• Your information is protected under our privacy policy.'),
+                                                SizedBox(height: 8),
+                                                Text('• YES! Free WiFi may update these terms without prior notice.'),
+                                              ],
+                                            ),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(context),
+                                              child: const Text('CLOSE'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                    child: Text('Terms & Conditions', style: GoogleFonts.poppins(color: AppTheme.primaryPurple, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
                               ),
                             ),
-                ),
-              ),
-
-              const SizedBox(height: 25),
-
-              Row(
-                children: const [
-                  Expanded(
-                    child: Divider(),
-                  ),
-                  Padding(
-                    padding:
-                        EdgeInsets.symmetric(
-                            horizontal:
-                                10),
-                    child: Text(
-                      "or",
-                    ),
-                  ),
-                  Expanded(
-                    child: Divider(),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              Row(
-                mainAxisAlignment:
-                    MainAxisAlignment
-                        .center,
-                children: [
-                  const Text(
-                    "Already have an account? ",
-                    style: TextStyle(
-                      fontSize: 16,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(
-                          context);
-                    },
-                    child:
-                        const Text(
-                      "Login",
-                      style:
-                          TextStyle(
-                        color: Color(
-                          0xFF7B1FA2,
+                          ],
                         ),
-                        fontWeight:
-                            FontWeight
-                                .bold,
-                                fontSize: 16,
-                      ),
+                        if (message != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Text(
+                              message!,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: (!agreeTerms || isLoading) ? null : signup,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryPurple,
+                              disabledBackgroundColor: Colors.grey.shade400,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: isLoading
+                                ? const CircularProgressIndicator(color: Colors.white)
+                                : Text('SIGN UP', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(height: 25),
+                        Row(
+                          children: const [
+                            Expanded(child: Divider()),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              child: Text('or'),
+                            ),
+                            Expanded(child: Divider()),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('Already have an account? ', style: GoogleFonts.poppins(fontSize: 16)),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.pop(context);
+                              },
+                              child: Text('Login', style: GoogleFonts.poppins(color: AppTheme.primaryPurple, fontWeight: FontWeight.bold, fontSize: 16)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                      ],
                     ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 140),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
