@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_fonts/google_fonts.dart';
 import '../theme.dart';
@@ -113,19 +114,26 @@ class _AboutPageState extends State<AboutPage> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: GoogleMap(
-                    initialCameraPosition: const CameraPosition(
-                      target: LatLng(14.5995, 120.9842),
-                      zoom: 12,
-                    ),
-                    markers: markers,
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: true,
-                    zoomControlsEnabled: false,
-                    onMapCreated: (controller) {
-                      mapController = controller;
-                    },
-                  ),
+                  child: kIsWeb
+                      ? Container(
+                          color: Colors.grey.shade200,
+                          child: const Center(
+                            child: Icon(Icons.map, size: 64, color: Colors.black26),
+                          ),
+                        )
+                      : GoogleMap(
+                          initialCameraPosition: const CameraPosition(
+                            target: LatLng(14.5995, 120.9842),
+                            zoom: 12,
+                          ),
+                          markers: markers,
+                          myLocationEnabled: true,
+                          myLocationButtonEnabled: true,
+                          zoomControlsEnabled: false,
+                          onMapCreated: (controller) {
+                            mapController = controller;
+                          },
+                        ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -149,16 +157,11 @@ class _AboutPageState extends State<AboutPage> {
 
                     return Card(
                       child: ListTile(
-                        leading: const Icon(
-                          Icons.location_on,
-                          color: Colors.red,
-                        ),
-                        title: Text(marker.infoWindow.title ?? ""),
-                        subtitle: Text(marker.infoWindow.snippet ?? ""),
+                        leading: const Icon(Icons.location_on, color: Colors.red),
+                        title: Text(marker.infoWindow.title ?? "", style: GoogleFonts.poppins(color: Colors.black87, fontWeight: FontWeight.w600)),
+                        subtitle: Text(marker.infoWindow.snippet ?? "", style: GoogleFonts.poppins(color: Colors.black54)),
                         onTap: () {
-                          mapController?.animateCamera(
-                            CameraUpdate.newLatLng(marker.position),
-                          );
+                          mapController?.animateCamera(CameraUpdate.newLatLng(marker.position));
                         },
                       ),
                     );

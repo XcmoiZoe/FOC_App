@@ -237,23 +237,22 @@ class _RedeemPageState extends State<RedeemPage> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                    child: TextField(
-                      controller: searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search rewards...',
-                        prefixIcon: const Icon(Icons.search),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
+                      child: TextField(
+                        controller: searchController,
+                        style: GoogleFonts.poppins(color: Colors.black87),
+                        cursorColor: AppTheme.primaryPurple,
+                        decoration: InputDecoration(
+                          hintText: 'Search rewards...',
+                          prefixIcon: const Icon(Icons.search),
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         ),
                       ),
-                    ),
                   ),
                 ),
                 SliverToBoxAdapter(
@@ -438,25 +437,11 @@ class RewardCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
-            Text(
-              reward.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-              ),
-            ),
+            Text(reward.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87)),
             const SizedBox(height: 6),
-            Text(
-              '⭐ ${reward.pointsRequired} pts',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
+            Text('⭐ ${reward.pointsRequired} pts', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.black87)),
             const SizedBox(height: 4),
-            Text(
-              'Stock: ${reward.stock}',
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
-            ),
+            Text('Stock: ${reward.stock}', style: GoogleFonts.poppins(color: Colors.black54, fontSize: 12)),
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,

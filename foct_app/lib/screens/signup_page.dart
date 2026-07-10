@@ -188,6 +188,8 @@ class _SignupPageState extends State<SignupPage> {
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: TextField(
+        style: const TextStyle(color: Colors.black87),
+        cursorColor: AppTheme.primaryPurple,
         controller: controller,
         keyboardType: keyboardType,
         decoration: InputDecoration(
@@ -367,20 +369,20 @@ class _SignupPageState extends State<SignupPage> {
                         ),
                         const SizedBox(height: 25),
                         Row(
-                          children: const [
-                            Expanded(child: Divider()),
+                          children: [
+                            const Expanded(child: Divider()),
                             Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 10),
-                              child: Text('or'),
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              child: Text('or', style: GoogleFonts.poppins(color: Colors.black45)),
                             ),
-                            Expanded(child: Divider()),
+                            const Expanded(child: Divider()),
                           ],
                         ),
                         const SizedBox(height: 10),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('Already have an account? ', style: GoogleFonts.poppins(fontSize: 16)),
+                            Text('Already have an account? ', style: GoogleFonts.poppins(fontSize: 16, color: Colors.black87)),
                             GestureDetector(
                               onTap: () {
                                 Navigator.pop(context);

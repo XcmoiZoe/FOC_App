@@ -6,6 +6,8 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter/foundation.dart';
+import '../screens/about_page.dart';
 import 'package:http/http.dart' as http;
 
 class HomePage extends StatefulWidget {
@@ -599,24 +601,31 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   Align(alignment: Alignment.centerLeft, child: Text('Find WiFi Hotspots', style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, shadows: [Shadow(color: Colors.black26, offset: Offset(0,1), blurRadius: 3)]))),
                   const SizedBox(height: 8),
                   GestureDetector(
-                    onTap: () => Navigator.pushNamed(context, '/about'),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutPage())),
                     child: Container(
                       height: 160,
                       decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), color: const Color(0xFF2A125A)),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: Stack(children: [
-                          // live Google Map preview
+                          // live Google Map preview (disabled on web)
                           Positioned.fill(
-                            child: GoogleMap(
-                              initialCameraPosition: const CameraPosition(target: LatLng(12.8797, 121.7740), zoom: 5.5),
-                              markers: hotspotMarkers,
-                              myLocationEnabled: false,
-                              zoomControlsEnabled: false,
-                              onMapCreated: (controller) {
-                                hotspotMapController = controller;
-                              },
-                            ),
+                            child: kIsWeb
+                                ? Container(
+                                    color: const Color(0xFF2A125A),
+                                    child: const Center(
+                                      child: Icon(Icons.map, color: Colors.white70, size: 48),
+                                    ),
+                                  )
+                                : GoogleMap(
+                                    initialCameraPosition: const CameraPosition(target: LatLng(12.8797, 121.7740), zoom: 5.5),
+                                    markers: hotspotMarkers,
+                                    myLocationEnabled: false,
+                                    zoomControlsEnabled: false,
+                                    onMapCreated: (controller) {
+                                      hotspotMapController = controller;
+                                    },
+                                  ),
                           ),
                           // center label
                           Center(
@@ -626,7 +635,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               Text('Philippines', style: GoogleFonts.poppins(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600)),
                             ]),
                           ),
-                          Positioned(bottom: 8, left: 8, child: ElevatedButton(onPressed: () => Navigator.pushNamed(context, '/about'), style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF7C3AED), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Open Map'))),
+                          Positioned(
+                            bottom: 8,
+                            left: 8,
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutPage())),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF7C3AED), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                              child: const Text('Open Map'),
+                            ),
+                          ),
                         ]),
                       ),
                     ),

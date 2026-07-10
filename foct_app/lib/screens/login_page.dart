@@ -114,6 +114,8 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
       child: TextField(
+        style: const TextStyle(color: Colors.black87),
+        cursorColor: AppTheme.primaryPurple,
         controller: controller,
         obscureText: obscure,
         decoration: InputDecoration(

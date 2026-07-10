@@ -131,6 +131,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     ),
                   ),
                   child: TextField(
+                    style: const TextStyle(color: Colors.black87),
+                    cursorColor: AppTheme.primaryPurple,
                     controller: phoneController,
                     keyboardType: TextInputType.phone,
                     inputFormatters: [

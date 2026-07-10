@@ -290,17 +290,11 @@ class ProfileInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin:
-          const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.circular(12),
-      ),
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        title: Text(title),
-        subtitle: Text(
-          value.isEmpty ? '-' : value,
-        ),
+        title: Text(title, style: GoogleFonts.poppins(color: Colors.black87, fontWeight: FontWeight.w600)),
+        subtitle: Text(value.isEmpty ? '-' : value, style: GoogleFonts.poppins(color: Colors.black54)),
       ),
     );
   }
@@ -319,30 +313,14 @@ class ProfileMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin:
-          const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.circular(12),
-      ),
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: Icon(
-          icon,
-          color: Colors.deepPurple,
-        ),
-        title: Text(title),
-        trailing: const Icon(
-          Icons.arrow_forward_ios,
-          size: 16,
-        ),
+        leading: Icon(icon, color: AppTheme.primaryPurple),
+        title: Text(title, style: GoogleFonts.poppins(color: Colors.black87)),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: () {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(
-            SnackBar(
-              content:
-                  Text("$title clicked"),
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$title clicked")));
         },
       ),
     );

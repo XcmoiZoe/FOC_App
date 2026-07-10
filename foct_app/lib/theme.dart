@@ -15,6 +15,13 @@ class AppTheme {
       scaffoldBackgroundColor: const Color(0xFF200F46),
       colorScheme: ColorScheme.fromSeed(seedColor: primaryPurple),
       textTheme: GoogleFonts.poppinsTextTheme().apply(bodyColor: Colors.white, displayColor: Colors.white),
+      // styles to use on light surfaces (cards, inputs)
+      extensions: <ThemeExtension<dynamic>>[
+        LightTextStyles(
+          body: GoogleFonts.poppins(color: Colors.black87),
+          subtitle: GoogleFonts.poppins(color: Colors.black54),
+        ),
+      ],
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accentAmber,
@@ -26,3 +33,20 @@ class AppTheme {
     );
   }
 }
+
+class LightTextStyles extends ThemeExtension<LightTextStyles> {
+  final TextStyle? body;
+  final TextStyle? subtitle;
+
+  const LightTextStyles({this.body, this.subtitle});
+
+  @override
+  LightTextStyles copyWith({TextStyle? body, TextStyle? subtitle}) => LightTextStyles(body: body ?? this.body, subtitle: subtitle ?? this.subtitle);
+
+  @override
+  LightTextStyles lerp(ThemeExtension<LightTextStyles>? other, double t) {
+    if (other is! LightTextStyles) return this;
+    return LightTextStyles(body: TextStyle.lerp(body, other.body, t), subtitle: TextStyle.lerp(subtitle, other.subtitle, t));
+  }
+}
+
