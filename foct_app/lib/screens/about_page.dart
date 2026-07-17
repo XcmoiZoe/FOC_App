@@ -75,23 +75,13 @@ class _AboutPageState extends State<AboutPage> {
             children: [
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.accentAmber.withOpacity(0.4),
-                      blurRadius: 20,
-                    )
-                  ],
-                ),
-                child: Image.asset('assets/logo.png', width: 100, errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 80)),
+                child: Image.asset('assets/logo1.png', width: 100, errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 80)),
               ),
               const SizedBox(height: 25),
-              Text("Yes Ads Rewards", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryPurple)),
+              Text("Yes Free WiFi", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryPurple)),
               const SizedBox(height: 10),
               Text(
-                "Yes Ads Rewards is a smart advertising platform where users earn points by engaging with ads and redeem them for exciting rewards.\n\nBoost visibility. Earn rewards. Grow together.",
+                "Yes Free WiFi is a smart advertising platform where users earn points by engaging with ads and redeem them for exciting rewards.\n\nBoost visibility. Earn rewards. Grow together.",
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(),
               ),
