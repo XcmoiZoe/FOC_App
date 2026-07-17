@@ -9,6 +9,19 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:flutter/foundation.dart';
 import '../screens/about_page.dart';
 import 'package:http/http.dart' as http;
+import 'package:share_plus/share_plus.dart';
+
+String formatActivityClaimDate(DateTime date) {
+  return '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+}
+
+bool canClaimActivity(String? lastClaimDate, DateTime now) {
+  if (lastClaimDate == null || lastClaimDate.isEmpty) {
+    return true;
+  }
+
+  return lastClaimDate != formatActivityClaimDate(now);
+}
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -463,6 +476,134 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
+  Future<bool> _canClaimActivityToday(String activityKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastClaimDate = prefs.getString(activityKey);
+    return canClaimActivity(lastClaimDate, DateTime.now());
+  }
+
+  Future<void> _markActivityClaimed(String activityKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(activityKey, formatActivityClaimDate(DateTime.now()));
+  }
+
+  Future<void> dailyLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null || token.isEmpty) return;
+
+    if (!await _canClaimActivityToday('daily_login')) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Daily login already claimed today.')));
+      }
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://54.255.150.15/mobile-api/daily-login'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Daily login processed')));
+      }
+
+      if (data['success'] == true) {
+        await _markActivityClaimed('daily_login');
+        await loadUser();
+        await loadRecentActivity();
+        await loadActivityCount();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Daily login failed: $e')));
+      }
+    }
+  }
+
+  Future<void> watchVideo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null || token.isEmpty) return;
+
+    if (!await _canClaimActivityToday('watch_video')) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Video reward already claimed today.')));
+      }
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://54.255.150.15/mobile-api/watch-video'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Video reward processed')));
+      }
+
+      if (data['success'] == true) {
+        await _markActivityClaimed('watch_video');
+        await loadUser();
+        await loadRecentActivity();
+        await loadActivityCount();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Video reward failed: $e')));
+      }
+    }
+  }
+
+  Future<void> inviteFriend() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null || token.isEmpty) return;
+
+    if (!await _canClaimActivityToday('invite_friend')) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invite reward already claimed today.')));
+      }
+      return;
+    }
+
+    final shareLink = 'https://yesfreewifi.com/register?ref=$memberCode';
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://54.255.150.15/mobile-api/invite-friend'),
+        headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+        body: jsonEncode({'referral_code': memberCode}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Invitation sent')));
+      }
+
+      if (data['success'] == true) {
+        await SharePlus.instance.share(
+          ShareParams(text: 'Join YES Free WiFi!\n$shareLink'),
+        );
+        await _markActivityClaimed('invite_friend');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Invitation failed: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -566,10 +707,30 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     Text('Daily Activities', style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 16),
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      _activityTile(Icons.calendar_today, 'Daily Login', '+10 pts'),
-                      _activityTile(Icons.play_circle_fill, 'Watch Video', '+20 pts'),
-                      _activityTile(Icons.autorenew, 'Lucky Spin', '+30 pts'),
-                      _activityTile(Icons.group_add, 'Invite Friend', '+50 pts'),
+                      _activityTile(
+                        icon: Icons.calendar_today,
+                        label: 'Daily Login',
+                        points: '+10 pts',
+                        onTap: dailyLogin,
+                      ),
+                      _activityTile(
+                        icon: Icons.play_circle_fill,
+                        label: 'Watch Video',
+                        points: '+20 pts',
+                        onTap: watchVideo,
+                      ),
+                      _activityTile(
+                        icon: Icons.autorenew,
+                        label: 'Lucky Spin',
+                        points: '+30 pts',
+                        onTap: showRoulettePopup,
+                      ),
+                      _activityTile(
+                        icon: Icons.group_add,
+                        label: 'Invite Friend',
+                        points: '+50 pts',
+                        onTap: inviteFriend,
+                      ),
                     ]),
                   ]),
                 ),
@@ -697,13 +858,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 }
 
-Widget _activityTile(IconData icon, String label, String points) {
+Widget _activityTile({
+  required IconData icon,
+  required String label,
+  required String points,
+  required VoidCallback onTap,
+}) {
   return Expanded(
-    child: Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(color: const Color(0xFF381B75), borderRadius: BorderRadius.circular(20)),
-      child: Column(children: [Icon(icon, color: const Color(0xFFFFD54F), size: 28), const SizedBox(height: 10), Text(label, textAlign: TextAlign.center, style: GoogleFonts.poppins(color: Colors.white, fontSize: 12)), const SizedBox(height: 8), Text(points, style: GoogleFonts.poppins(color: const Color(0xFFFFD54F), fontSize: 12, fontWeight: FontWeight.bold))]),
+    child: GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(color: const Color(0xFF381B75), borderRadius: BorderRadius.circular(20)),
+        child: Column(children: [Icon(icon, color: const Color(0xFFFFD54F), size: 28), const SizedBox(height: 10), Text(label, textAlign: TextAlign.center, style: GoogleFonts.poppins(color: Colors.white, fontSize: 12)), const SizedBox(height: 8), Text(points, style: GoogleFonts.poppins(color: const Color(0xFFFFD54F), fontSize: 12, fontWeight: FontWeight.bold))]),
+      ),
     ),
   );
 }
