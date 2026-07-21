@@ -35,44 +35,59 @@ class _SignupPageState extends State<SignupPage> {
     });
 
     try {
-      final fname = fnameController.text.trim();
-      final email = emailController.text.trim();
-      final phone = phoneController.text.trim();
-      final address = addressController.text.trim();
+     final fname = fnameController.text.trim();
+final email = emailController.text.trim().toLowerCase();
+final phone = phoneController.text.trim();
+final address = addressController.text.trim();
 
-      final emailRegex = RegExp(r'^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}\$');
-      if (!emailRegex.hasMatch(email)) {
-        setState(() {
-          message = 'Please enter a valid email address';
-          isLoading = false;
-        });
-        return;
-      }
+// Validate required fields first
+if (fname.isEmpty ||
+    email.isEmpty ||
+    phone.isEmpty ||
+    address.isEmpty) {
+  setState(() {
+    message = 'All fields are required';
+    isLoading = false;
+  });
+  return;
+}
 
-      if (!RegExp(r'^09\d{9}\$').hasMatch(phone)) {
-        setState(() {
-          message = 'Please enter a valid phone number';
-          isLoading = false;
-        });
-        return;
-      }
+// Email validation
+final emailRegex = RegExp(
+  r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
+);
 
-      if (fname.isEmpty || email.isEmpty || phone.isEmpty || address.isEmpty) {
-        setState(() {
-          message = 'All fields are required';
-          isLoading = false;
-        });
-        return;
-      }
+if (!emailRegex.hasMatch(email)) {
+  setState(() {
+    message = 'Please enter a valid email address';
+    isLoading = false;
+  });
+  return;
+}
 
-      if (!agreeTerms) {
-        setState(() {
-          message = 'Please accept Terms & Conditions';
-          isLoading = false;
-        });
-        return;
-      }
+// Philippine mobile validation
+if (!RegExp(r'^09\d{9}$').hasMatch(phone)) {
+  setState(() {
+    message = 'Please enter a valid phone number';
+    isLoading = false;
+  });
+  return;
+}
 
+// Terms & Conditions
+if (!agreeTerms) {
+  setState(() {
+    message = 'Please accept Terms & Conditions';
+    isLoading = false;
+  });
+  return;
+}
+
+print("Sending Signup:");
+print("Name: $fname");
+print("Email: $email");
+print("Phone: $phone");
+print("Address: $address");
       final res = await http
           .post(
             Uri.parse('http://54.255.150.15/mobile-api/signup'),
@@ -114,49 +129,76 @@ class _SignupPageState extends State<SignupPage> {
           context: context,
           barrierDismissible: false,
           builder: (_) => AlertDialog(
-            title: const Text('Account Created'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Member Code',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-                SelectableText(
-                  memberCode,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Login Code',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-                SelectableText(
-                  generatedCode,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Clipboard.setData(ClipboardData(text: '$memberCode / $generatedCode'));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Copied to clipboard')),
-                  );
-                },
-                child: const Text('Copy'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
-                },
-                child: const Text('Continue'),
-              ),
-            ],
-          ),
+  backgroundColor: Colors.white,
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(16),
+  ),
+  title: const Text(
+    'Account Created',
+    style: TextStyle(
+      color: Colors.black,
+      fontSize: 22,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
+  content: Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Member Code',
+        style: TextStyle(
+          color: Colors.purple[600],
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      SelectableText(
+        memberCode,
+        style: const TextStyle(
+          color: Colors.black,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 12),
+      Text(
+        'Login Code',
+        style: TextStyle(
+          color: Colors.purple[600],
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      SelectableText(
+        generatedCode,
+        style: const TextStyle(
+          color: Colors.black,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ],
+  ),
+  actions: [
+    TextButton(
+      onPressed: () {
+        Clipboard.setData(
+          ClipboardData(text: '$memberCode / $generatedCode'),
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Copied to clipboard')),
+        );
+      },
+      child: const Text('Copy'),
+    ),
+    TextButton(
+      onPressed: () {
+        Navigator.pop(context);
+        Navigator.pop(context);
+      },
+      child: const Text('Continue'),
+    ),
+  ],
+)
         );
       } else {
         setState(() {
@@ -195,7 +237,7 @@ class _SignupPageState extends State<SignupPage> {
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: hint,
-          prefixIcon: Icon(icon, color: Colors.grey),
+          prefixIcon: Icon(icon, color: Colors.purple),
         ),
       ),
     );
@@ -251,7 +293,7 @@ class _SignupPageState extends State<SignupPage> {
                       children: [
                         Text('Create Account', style: GoogleFonts.poppins(fontSize: 34, fontWeight: FontWeight.bold, color: AppTheme.deepPurple), textAlign: TextAlign.center),
                         const SizedBox(height: 10),
-                        Text('Sign up to earn points and enjoy free WiFi.', textAlign: TextAlign.center, style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 15)),
+                        Text('Sign up to earn points and enjoy free WiFi.', textAlign: TextAlign.center, style: GoogleFonts.poppins(color: Colors.black, fontSize: 15)),
                         const SizedBox(height: 28),
                         buildField(
                           controller: fnameController,
@@ -294,48 +336,97 @@ class _SignupPageState extends State<SignupPage> {
                               child: Wrap(
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  Text('I agree to the ', style: GoogleFonts.poppins(color: Colors.black87)),
-                                  GestureDetector(
-                                    onTap: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (_) => AlertDialog(
-                                          title: const Text('YES! FREE WIFI'),
-                                          content: SingleChildScrollView(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: const [
-                                                Text('By using this WiFi service you agree to the following terms.'),
-                                                SizedBox(height: 16),
-                                                Text('• Free WiFi is intended for personal use only.'),
-                                                SizedBox(height: 8),
-                                                Text('• Watching advertisements may reward you with points.'),
-                                                SizedBox(height: 8),
-                                                Text('• Reward points are not redeemable for cash.'),
-                                                SizedBox(height: 8),
-                                                Text('• Points may expire based on promotional rules.'),
-                                                SizedBox(height: 8),
-                                                Text('• Internet sessions may have usage limits.'),
-                                                SizedBox(height: 8),
-                                                Text('• Abuse or fraudulent activity may suspend your account.'),
-                                                SizedBox(height: 8),
-                                                Text('• Your information is protected under our privacy policy.'),
-                                                SizedBox(height: 8),
-                                                Text('• YES! Free WiFi may update these terms without prior notice.'),
-                                              ],
-                                            ),
-                                          ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () => Navigator.pop(context),
-                                              child: const Text('CLOSE'),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                    child: Text('Terms & Conditions', style: GoogleFonts.poppins(color: AppTheme.primaryPurple, fontWeight: FontWeight.bold)),
-                                  ),
+                                  Text('I agree to the ', style: GoogleFonts.poppins(color: Colors.black)),
+                         GestureDetector(
+  onTap: () {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF6A1B9A),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          'YES! FREE WIFI',
+          style: TextStyle(
+            color: Colors.orange,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'By using this WiFi service you agree to the following terms.',
+                style: TextStyle(color: Colors.orange),
+              ),
+              SizedBox(height: 16),
+              Text(
+                '• Free WiFi is intended for personal use only.',
+                style: TextStyle(color: Colors.orange),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '• Watching advertisements may reward you with points.',
+                style: TextStyle(color: Colors.orange),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '• Reward points are not redeemable for cash.',
+                style: TextStyle(color: Colors.orange),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '• Points may expire based on promotional rules.',
+                style: TextStyle(color: Colors.orange),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '• Internet sessions may have usage limits.',
+                style: TextStyle(color: Colors.orange),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '• Abuse or fraudulent activity may suspend your account.',
+                style: TextStyle(color: Colors.orange),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '• Your information is protected under our privacy policy.',
+                style: TextStyle(color: Colors.orange),
+              ),
+              SizedBox(height: 8),
+              Text(
+                '• YES! Free WiFi may update these terms without prior notice.',
+                style: TextStyle(color: Colors.orange),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'CLOSE',
+              style: TextStyle(
+                color: Colors.orange,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  },
+  child: Text(
+    'Terms & Conditions',
+    style: GoogleFonts.poppins(
+      color: AppTheme.primaryPurple,
+      fontWeight: FontWeight.bold,
+    ),
+  ),
+),
                                 ],
                               ),
                             ),

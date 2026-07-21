@@ -181,7 +181,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         final double targetTurns = fullSpins + (1 - ((selectedIndex + 0.5) * sectorSize));
 
         _spinController
-          ..duration = const Duration(seconds: 10)
+          ..duration = const Duration(milliseconds: 1800)
           ..value = 0.0;
 
         await _spinController.animateTo(targetTurns % 1, curve: Curves.decelerate);
@@ -198,9 +198,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
         showRewardDialog(reward);
 
-        await loadUser();
-        await loadRecentActivity();
-        await loadActivityCount();
+       loadUser();
+       loadRecentActivity();
+       loadActivityCount();
       } catch (e) {
         setStateSB(() {
           loading = false;
