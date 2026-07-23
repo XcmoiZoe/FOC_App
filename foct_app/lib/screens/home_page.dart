@@ -40,27 +40,44 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int recentPoints = 0;
   int activityCount = 0;
   List<dynamic> rewards = [];
+late AnimationController _wheelController;
+late AnimationController _glowController;
+late AnimationController _bounceController;
+late AnimationController _confettiController;
 
+bool _isSpinning = false;
+bool _showConfetti = false;
+
+double _currentTurns = 0.0;
   // Hotspot map
   GoogleMapController? hotspotMapController;
   Set<Marker> hotspotMarkers = {};
   final String hotspotApiUrl = "http://54.255.150.15/mobile-api/location";
 
-  late AnimationController _spinController;
-  bool _isSpinning = false;
   int earnedPoints = 0;
 
   @override
   void initState() {
     super.initState();
+_wheelController = AnimationController(
+  vsync: this,
+  duration: const Duration(milliseconds: 4500),
+);
 
-    _spinController = AnimationController(
-      vsync: this,
-      lowerBound: 0.0,
-      upperBound: 1.0,
-      duration: const Duration(seconds: 4),
-    );
+_glowController = AnimationController(
+  vsync: this,
+  duration: const Duration(milliseconds: 900),
+)..repeat(reverse: true);
 
+_bounceController = AnimationController(
+  vsync: this,
+  duration: const Duration(milliseconds: 650),
+);
+
+_confettiController = AnimationController(
+  vsync: this,
+  duration: const Duration(milliseconds: 1800),
+);
     loadUser();
     loadRewards();
     loadRecentActivity();
@@ -98,10 +115,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   @override
-  void dispose() {
-    _spinController.dispose();
-    super.dispose();
-  }
+void dispose() {
+  _wheelController.dispose();
+  _glowController.dispose();
+  _bounceController.dispose();
+  _confettiController.dispose();
+  super.dispose();
+}
 
   Map<String, dynamic>? getNextReward() {
     if (rewards.isEmpty) return null;
@@ -116,168 +136,338 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void showRoulettePopup() {
-    final sectors = <dynamic>["Try again", 5, 10, 20, 50];
+  final sectors = <dynamic>["Try again", 5, 10, 20, 50];
+  final int sectorCount = sectors.length;
+  final double sectorAngle = 2 * math.pi / sectorCount;
 
-    int selectedIndex = 0;
-    bool loading = false;
+  int getTargetIndex(dynamic reward) {
+    if (reward == "Try again") return 0;
+    final idx = sectors.indexWhere((e) => e.toString() == reward.toString());
+    return idx >= 0 ? idx : 0;
+  }
 
-    int getTargetIndex(dynamic reward) {
-      if (reward == "Try again") return 0;
-      final idx = sectors.indexWhere((e) => e.toString() == reward.toString());
-      return idx >= 0 ? idx : 0;
-    }
+  double getTurnsForIndex(int index, {int extraSpins = 6}) {
+    final centerAngle = (index * sectorAngle) + (sectorAngle / 2);
+    final pointerAngle = -math.pi / 2;
+    final delta = (2 * math.pi) - ((centerAngle - pointerAngle) % (2 * math.pi));
+    return extraSpins + (delta / (2 * math.pi));
+  }
 
-    Future<void> spinAndShowResult(StateSetter setStateSB) async {
-      if (_isSpinning) return;
+  Future<void> spinAndShowResult(StateSetter setStateSB) async {
+    if (_isSpinning) return;
 
-      setStateSB(() {
-        loading = true;
-        _isSpinning = true;
-      });
+    setStateSB(() {
+      _isSpinning = true;
+      _showConfetti = false;
+    });
 
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final token = prefs.getString('token');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
 
-        if (token == null || token.isEmpty) {
-          setStateSB(() {
-            loading = false;
-            _isSpinning = false;
-          });
-          return;
-        }
+      if (token == null || token.isEmpty) {
+        setStateSB(() => _isSpinning = false);
+        return;
+      }
 
-        final resp = await http.post(
-          Uri.parse('http://54.255.150.15/mobile-api/roulette'),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-        );
+      _wheelController.duration = const Duration(milliseconds: 900);
+      final spinListener = () {
+  setStateSB(() {
+   _currentTurns = (_currentTurns + 0.05) % 1.0;
+  });
+};
 
-        final Map<String, dynamic> data = jsonDecode(resp.body);
+_wheelController.addListener(spinListener);
+      _wheelController.repeat();
 
-        if (data['success'] != true) {
-          setStateSB(() {
-            loading = false;
-            _isSpinning = false;
-          });
+      final resp = await http.post(
+        Uri.parse('http://54.255.150.15/mobile-api/roulette'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
 
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Spin failed')));
-          }
-          return;
-        }
+      final Map<String, dynamic> data = jsonDecode(resp.body);
 
-        final dynamic reward = data['reward'];
-        final int newTotal = (data['total_points'] as num).toInt();
-
-        selectedIndex = getTargetIndex(reward);
-
-        final int fullSpins = 6;
-        final double sectorSize = 1 / sectors.length;
-
-        // Pointer is at the top (12 o'clock)
-        final double targetTurns = fullSpins + (1 - ((selectedIndex + 0.5) * sectorSize));
-
-        _spinController
-          ..duration = const Duration(milliseconds: 1800)
-          ..value = 0.0;
-
-        await _spinController.animateTo(targetTurns % 1, curve: Curves.decelerate);
-
-        if (!mounted) return;
-
-        setState(() {
-          earnedPoints = reward is num ? reward.toInt() : 0;
-          totalPoints = newTotal;
-          _isSpinning = false;
-        });
-
-        Navigator.of(context).pop();
-
-        showRewardDialog(reward);
-
-       loadUser();
-       loadRecentActivity();
-       loadActivityCount();
-      } catch (e) {
-        setStateSB(() {
-          loading = false;
-          _isSpinning = false;
-        });
+      if (data['success'] != true) {
+        _wheelController.stop();
+        setStateSB(() => _isSpinning = false);
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Roulette error: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(data['message'] ?? 'Spin failed')),
+          );
         }
+        return;
       }
-    }
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return StatefulBuilder(builder: (context, setStateSB) {
+      final dynamic reward = data['reward'];
+      final int newTotal = (data['total_points'] as num).toInt();
+      final int selectedIndex = getTargetIndex(reward);
+
+      final double targetTurns = _currentTurns + getTurnsForIndex(selectedIndex);
+
+
+ _wheelController.stop();
+_wheelController.removeListener(spinListener);
+
+final animation = Tween<double>(
+  begin: _currentTurns,
+  end: targetTurns,
+).animate(
+  CurvedAnimation(
+    parent: _wheelController,
+    curve: Curves.easeOutQuart,
+  ),
+);
+
+_wheelController
+  ..reset()
+  ..duration = const Duration(milliseconds: 3500);
+
+      final listener = () {
+        setStateSB(() {
+          _currentTurns = animation.value;
+        });
+      };
+
+      _wheelController.addListener(listener);
+     _currentTurns = targetTurns % 1; 
+      _wheelController.removeListener(listener);
+
+      await _bounceController.forward(from: 0);
+
+      if (!mounted) return;
+
+      setState(() {
+        earnedPoints = reward is num ? reward.toInt() : 0;
+        totalPoints = newTotal;
+        _isSpinning = false;
+        _showConfetti = reward.toString() != 'Try again';
+      });
+
+      await Future.delayed(const Duration(milliseconds: 180));
+      if (mounted) {
+        showRewardDialog(reward);
+      }
+
+      if (_showConfetti) {
+        _confettiController.forward(from: 0);
+      }
+
+      loadUser();
+      loadRecentActivity();
+      loadActivityCount();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Roulette error: $e')),
+        );
+      }
+      setStateSB(() => _isSpinning = false);
+      _wheelController.stop();
+    }
+  }
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (context, setStateSB) {
+          final glow = 0.55 + (_glowController.value * 0.45);
+          final bounce = Tween<double>(begin: 1.0, end: 1.06)
+              .chain(CurveTween(curve: Curves.easeOutBack))
+              .evaluate(_bounceController);
+
           return Dialog(
             backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
             child: Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF7C3AED), Color(0xFF4C1D95), Color(0xFF2E1065)],
+                  colors: [Color(0xFF8B5CF6), Color(0xFF5B21B6), Color(0xFF1E1B4B)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(30),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 24, offset: const Offset(0, 12)),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.35),
+                    blurRadius: 28,
+                    offset: const Offset(0, 14),
+                  ),
                 ],
               ),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Row(children: [
-                  const Icon(Icons.card_giftcard, color: Colors.amber),
-                  const SizedBox(width: 8),
-                  Expanded(
-                      child: Text('Daily Roulette', style: GoogleFonts.poppins(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800))),
-                  IconButton(onPressed: _isSpinning ? null : () => Navigator.pop(context), icon: const Icon(Icons.close, color: Colors.white70)),
-                ]),
-                const SizedBox(height: 8),
-                Text('Spin to win points or try again', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 13)),
-                const SizedBox(height: 18),
-                Stack(alignment: Alignment.topCenter, children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 24),
-                    child: AnimatedBuilder(
-                      animation: _spinController,
-                      builder: (_, __) {
-                        return Transform.rotate(angle: _spinController.value * 2 * math.pi, child: CustomPaint(painter: _WheelPainter(sectors), child: const SizedBox(width: 270, height: 270)));
-                      },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.card_giftcard, color: Colors.amber),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Daily Roulette',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _isSpinning ? null : () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Spin to win points or try again',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white70,
+                      fontSize: 13,
                     ),
                   ),
-                  Container(width: 44, height: 44, decoration: const BoxDecoration(color: Colors.amber, shape: BoxShape.circle), child: const Icon(Icons.arrow_drop_down, size: 34, color: Colors.black)),
-                ]),
-                const SizedBox(height: 18),
-                Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), decoration: BoxDecoration(color: Colors.white.withOpacity(0.12), borderRadius: BorderRadius.circular(16)), child: Text(_isSpinning ? 'Spinning...' : 'Tap spin to start your daily chance', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.w600))),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: (_isSpinning) ? null : () => spinAndShowResult(setStateSB),
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFBBF24), foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 6),
-                    child: _isSpinning
-                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.black))
-                        : Text('SPIN NOW', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: 1)),
+                  const SizedBox(height: 18),
+                  AnimatedBuilder(
+                    animation: Listenable.merge([
+                      _wheelController,
+                      _glowController,
+                      _bounceController,
+                    ]),
+                    builder: (_, __) {
+                      final rotation = _currentTurns * 2 * math.pi;
+                      return Transform.scale(
+                        scale: bounce,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              width: 298,
+                              height: 298,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFFFD700).withOpacity(glow * 0.42),
+                                    blurRadius: 34,
+                                    spreadRadius: 6,
+                                  ),
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.25),
+                                    blurRadius: 24,
+                                    offset: const Offset(0, 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Transform.rotate(
+                              angle: rotation,
+                              child: CustomPaint(
+                                painter: _WheelPainter(sectors),
+                                child: const SizedBox(width: 270, height: 270),
+                              ),
+                            ),
+                            Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.amber.withOpacity(0.8),
+                                    blurRadius: 12,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Positioned(
+                              top: 0,
+                              child: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: Colors.amber,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.amber.withOpacity(0.45),
+                                      blurRadius: 16,
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_drop_down,
+                                  size: 34,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                ),
-              ]),
+                  const SizedBox(height: 18),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      _isSpinning ? 'Spinning...' : 'Tap spin to start your daily chance',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: _isSpinning ? null : () => spinAndShowResult(setStateSB),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFBBF24),
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 6,
+                      ),
+                      child: _isSpinning
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                color: Colors.black,
+                              ),
+                            )
+                          : Text(
+                              'SPIN NOW',
+                              style: GoogleFonts.poppins(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
-        });
-      },
-    );
-  }
+        },
+      );
+    },
+  );
+}
 
   void showRewardDialog(dynamic reward) {
     final isTryAgain = reward.toString() == 'Try again';
@@ -886,29 +1076,82 @@ class _WheelPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2;
     final rect = Rect.fromCircle(center: center, radius: radius);
-    final paint = Paint()..style = PaintingStyle.fill;
 
     final sweep = 2 * math.pi / sectors.length;
     double start = -math.pi / 2;
 
+    final segmentPaint = Paint()..style = PaintingStyle.fill;
+    final borderPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..color = Colors.white.withOpacity(0.14);
+
+    canvas.drawCircle(center, radius, Paint()..color = const Color(0xFF2A125A));
+    canvas.drawCircle(center, radius, borderPaint);
+
     for (var i = 0; i < sectors.length; i++) {
-      paint.color = (i % 2 == 0) ? const Color(0xFF6F2DBD) : Colors.orange;
-      canvas.drawArc(rect, start, sweep, true, paint);
+      segmentPaint.color = i == 0
+          ? const Color(0xFFEF4444)
+          : i.isEven
+              ? const Color(0xFF7C3AED)
+              : const Color(0xFFF59E0B);
+
+      canvas.drawArc(rect, start, sweep, true, segmentPaint);
+
+      final innerShadow = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 10
+        ..color = Colors.black.withOpacity(0.08);
+      canvas.drawArc(rect.deflate(5), start, sweep, true, innerShadow);
 
       final label = sectors[i].toString();
-      final textSpan = TextSpan(text: label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold));
-      final tp = TextPainter(text: textSpan, textDirection: ui.TextDirection.ltr);
-      tp.layout();
+      final tp = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: label.length > 6 ? 11 : 14,
+            fontWeight: FontWeight.w800,
+            shadows: [
+              Shadow(
+                color: Colors.black.withOpacity(0.35),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+        ),
+        textDirection: ui.TextDirection.ltr,
+      )..layout();
 
       final angle = start + sweep / 2;
-      final tx = center.dx + (radius * 0.6) * math.cos(angle) - tp.width / 2;
-      final ty = center.dy + (radius * 0.6) * math.sin(angle) - tp.height / 2;
-      tp.paint(canvas, Offset(tx, ty));
+      final textRadius = radius * 0.62;
+      final x = center.dx + textRadius * math.cos(angle) - tp.width / 2;
+      final y = center.dy + textRadius * math.sin(angle) - tp.height / 2;
+      tp.paint(canvas, Offset(x, y));
 
       start += sweep;
     }
+
+    canvas.drawCircle(
+      center,
+      radius * 0.18,
+      Paint()
+        ..shader = const RadialGradient(
+          colors: [Color(0xFFFFF7CC), Color(0xFFFBBF24)],
+        ).createShader(Rect.fromCircle(center: center, radius: radius * 0.18)),
+    );
+
+    canvas.drawCircle(
+      center,
+      radius * 0.18,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4
+        ..color = Colors.white.withOpacity(0.7),
+    );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _WheelPainter oldDelegate) => true;
 }
