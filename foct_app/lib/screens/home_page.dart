@@ -1051,40 +1051,91 @@ setState(() {
 
               const SizedBox(height: 24),
 
-              // Suggested rewards
+           
+
+              // Suggested rewards - Coming Soon
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Text('Rewards You Can Redeem', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                  const SizedBox(height: 12),
-                  if (getSuggestedRewards().isEmpty) const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No rewards available yet'))),
-                  ...getSuggestedRewards().map((reward) {
-                    final bool canRedeem = totalPoints >= reward['points_required'];
-                    return Card(
-                      elevation: 0,
-                      color: Colors.transparent,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: const Color(0xFFF8F2FF), borderRadius: BorderRadius.circular(16)),
-                        child: Row(children: [
-                          ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(reward['image_url'] ?? '', width: 70, height: 70, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(width: 70, height: 70, color: Colors.grey.shade200, child: const Icon(Icons.image)))),
-                          const SizedBox(width: 12),
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(reward['title'], style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2A125A))),
-                            const SizedBox(height: 6),
-                            Text(reward['description'], maxLines: 2, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF2A125A))),
-                          ])),
-                          const SizedBox(width: 12),
-                          SizedBox(width: 110, height: 44, child: ElevatedButton(onPressed: canRedeem ? () => redeemReward(reward['id']) : null, style: ElevatedButton.styleFrom(backgroundColor: canRedeem ? const Color(0xFF6F2DBD) : Colors.grey.shade300, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), elevation: 3), child: Text(canRedeem ? 'REDEEM' : '+${reward['points_required'] - totalPoints}', style: GoogleFonts.poppins(color: canRedeem ? Colors.white : const Color(0xFF4C1D95), fontWeight: FontWeight.bold)))),
-                        ]),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Rewards You Can Redeem',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
-                    );
-                  }).toList(),
-                ]),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A125A),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white24, width: 1.5),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.card_giftcard,
+                            color: Colors.amber,
+                            size: 72,
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            "Rewards Store",
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Coming Soon",
+                            style: GoogleFonts.poppins(
+                              color: Colors.amber,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            "Exciting rewards are being prepared.\nRedeem your points very soon!",
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              color: Colors.white70,
+                              fontSize: 14.5,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton(
+                            onPressed: () => showComingSoonDialog("Rewards Store"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.amber,
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            child: const Text(
+                              "Notify Me",
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
               const SizedBox(height: 40),
+
+            
             ]),
           ),
         ),
