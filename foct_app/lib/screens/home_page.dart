@@ -56,6 +56,55 @@ double _currentTurns = 0.0;
 
   int earnedPoints = 0;
 
+void showComingSoonDialog(String feature) {
+  showDialog(
+    context: context,
+    builder: (_) => Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.rocket_launch,
+              color: Colors.orange,
+              size: 70,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              feature,
+              style: GoogleFonts.poppins(
+                color: Colors.purple,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "This feature is coming soon!\nStay tuned for exciting updates.",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("OK"),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
   @override
   void initState() {
     super.initState();
@@ -135,7 +184,7 @@ void dispose() {
     return null;
   }
 
-  void showRoulettePopup() {
+ void showRoulettePopup() {
   final sectors = <dynamic>["Try again", 5, 10, 20, 50];
   final int sectorCount = sectors.length;
   final double sectorAngle = 2 * math.pi / sectorCount;
@@ -146,12 +195,10 @@ void dispose() {
     return idx >= 0 ? idx : 0;
   }
 
-  double getTurnsForIndex(int index, {int extraSpins = 6}) {
-    final centerAngle = (index * sectorAngle) + (sectorAngle / 2);
-    final pointerAngle = -math.pi / 2;
-    final delta = (2 * math.pi) - ((centerAngle - pointerAngle) % (2 * math.pi));
-    return extraSpins + (delta / (2 * math.pi));
-  }
+  // Improved accurate landing
+double getTurnsForIndex(int index, {int extraSpins = 6}) {
+  return extraSpins + (1.0 - (index + 0.5) / sectorCount);
+}
 
   Future<void> spinAndShowResult(StateSetter setStateSB) async {
     if (_isSpinning) return;
@@ -170,16 +217,7 @@ void dispose() {
         return;
       }
 
-      _wheelController.duration = const Duration(milliseconds: 900);
-      final spinListener = () {
-  setStateSB(() {
-   _currentTurns = (_currentTurns + 0.05) % 1.0;
-  });
-};
-
-_wheelController.addListener(spinListener);
-      _wheelController.repeat();
-
+      // === API CALL ===
       final resp = await http.post(
         Uri.parse('http://54.255.150.15/mobile-api/roulette'),
         headers: {
@@ -191,9 +229,7 @@ _wheelController.addListener(spinListener);
       final Map<String, dynamic> data = jsonDecode(resp.body);
 
       if (data['success'] != true) {
-        _wheelController.stop();
         setStateSB(() => _isSpinning = false);
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(data['message'] ?? 'Spin failed')),
@@ -202,52 +238,59 @@ _wheelController.addListener(spinListener);
         return;
       }
 
-      final dynamic reward = data['reward'];
-      final int newTotal = (data['total_points'] as num).toInt();
-      final int selectedIndex = getTargetIndex(reward);
+      final reward = data['reward'];
+      final newTotal = (data['total_points'] as num).toInt();
+      final selectedIndex = getTargetIndex(reward);
 
-      final double targetTurns = _currentTurns + getTurnsForIndex(selectedIndex);
+      // Calculate final position
+      final targetTurns =
+    _currentTurns.floorToDouble() + getTurnsForIndex(selectedIndex);
+print("Reward: $reward");
+print("Selected Index: $selectedIndex");
+      final animation = Tween<double>(
+        begin: _currentTurns,
+        end: targetTurns,
+      ).animate(
+        CurvedAnimation(
+          parent: _wheelController,
+          curve: Curves.easeOutCubic, // smoother stop
+        ),
+      );
 
+      void listener() {
+        if (mounted) {
+          setStateSB(() {
+            _currentTurns = animation.value;
+          });
+        }
+      }
 
- _wheelController.stop();
-_wheelController.removeListener(spinListener);
-
-final animation = Tween<double>(
-  begin: _currentTurns,
-  end: targetTurns,
-).animate(
-  CurvedAnimation(
-    parent: _wheelController,
-    curve: Curves.easeOutQuart,
-  ),
-);
-
-_wheelController
-  ..reset()
-  ..duration = const Duration(milliseconds: 3500);
-
-      final listener = () {
-        setStateSB(() {
-          _currentTurns = animation.value;
-        });
-      };
+      _wheelController
+        ..reset()
+        ..duration = const Duration(milliseconds: 3800);
 
       _wheelController.addListener(listener);
-     _currentTurns = targetTurns % 1; 
+
+      await _wheelController.forward(from: 0.0);
+
       _wheelController.removeListener(listener);
 
-      await _bounceController.forward(from: 0);
+      // Normalize for next spin
+      _currentTurns = targetTurns % 1.0;
 
       if (!mounted) return;
 
-      setState(() {
-        earnedPoints = reward is num ? reward.toInt() : 0;
-        totalPoints = newTotal;
-        _isSpinning = false;
-        _showConfetti = reward.toString() != 'Try again';
-      });
+    setStateSB(() {
+  _isSpinning = false;
+  _showConfetti = reward.toString() != 'Try again';
+});
 
-      await Future.delayed(const Duration(milliseconds: 180));
+setState(() {
+  earnedPoints = reward is num ? reward.toInt() : 0;
+  totalPoints = newTotal;
+});
+
+      await Future.delayed(const Duration(milliseconds: 200));
       if (mounted) {
         showRewardDialog(reward);
       }
@@ -256,6 +299,7 @@ _wheelController
         _confettiController.forward(from: 0);
       }
 
+      // Refresh data
       loadUser();
       loadRecentActivity();
       loadActivityCount();
@@ -265,11 +309,13 @@ _wheelController
           SnackBar(content: Text('Roulette error: $e')),
         );
       }
-      setStateSB(() => _isSpinning = false);
       _wheelController.stop();
+      setStateSB(() => _isSpinning = false);
+      
     }
   }
 
+  // ... rest of showDialog stays exactly the same ...
   showDialog(
     context: context,
     barrierDismissible: false,
@@ -280,7 +326,6 @@ _wheelController
           final bounce = Tween<double>(begin: 1.0, end: 1.06)
               .chain(CurveTween(curve: Curves.easeOutBack))
               .evaluate(_bounceController);
-
           return Dialog(
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
@@ -899,27 +944,27 @@ _wheelController
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                       _activityTile(
                         icon: Icons.calendar_today,
-                        label: 'Daily Login',
-                        points: '+10 pts',
-                        onTap: dailyLogin,
+                        label: 'Survey Challenge',
+                        points: 'Soon',
+                          onTap: () => showComingSoonDialog('Survey Challenge'),
                       ),
                       _activityTile(
                         icon: Icons.play_circle_fill,
                         label: 'Watch Video',
-                        points: '+20 pts',
-                        onTap: watchVideo,
+                        points: 'Soon',
+                        onTap: () => showComingSoonDialog('Watch Video'),
                       ),
                       _activityTile(
                         icon: Icons.autorenew,
                         label: 'Lucky Spin',
-                        points: '+30 pts',
+                        points: '+50 pts',
                         onTap: showRoulettePopup,
                       ),
                       _activityTile(
                         icon: Icons.group_add,
                         label: 'Invite Friend',
-                        points: '+50 pts',
-                        onTap: inviteFriend,
+                        points: 'Soon',
+                        onTap: () => showComingSoonDialog('Invite Friend'),
                       ),
                     ]),
                   ]),
@@ -1061,7 +1106,18 @@ Widget _activityTile({
         margin: const EdgeInsets.symmetric(horizontal: 4),
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(color: const Color(0xFF381B75), borderRadius: BorderRadius.circular(20)),
-        child: Column(children: [Icon(icon, color: const Color(0xFFFFD54F), size: 28), const SizedBox(height: 10), Text(label, textAlign: TextAlign.center, style: GoogleFonts.poppins(color: Colors.white, fontSize: 12)), const SizedBox(height: 8), Text(points, style: GoogleFonts.poppins(color: const Color(0xFFFFD54F), fontSize: 12, fontWeight: FontWeight.bold))]),
+        child: Column(children: [Icon(icon, color: const Color(0xFFFFD54F), size: 28), const SizedBox(height: 10), Text(label, textAlign: TextAlign.center, style: GoogleFonts.poppins(color: Colors.white, fontSize: 12)), const SizedBox(height: 8), Text(
+  points,
+  textAlign: TextAlign.center,
+  maxLines: 2,
+  overflow: TextOverflow.ellipsis,
+  style: GoogleFonts.poppins(
+    color: const Color(0xFFFFD54F),
+    fontSize: points == 'Coming Soon' ? 9 : 12,
+    fontWeight: FontWeight.bold,
+    height: 1.1,
+  ),
+),]),
       ),
     ),
   );

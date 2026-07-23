@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:ui';
 
 class RedeemPage extends StatefulWidget {
   final String memberCode;
@@ -209,7 +210,9 @@ class _RedeemPageState extends State<RedeemPage> {
         title: Text('Redeem Rewards', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
       ),
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: FutureBuilder<RewardResponse>(
+   body: Stack(
+  children: [
+    FutureBuilder<RewardResponse>(
         future: rewardsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -345,6 +348,50 @@ class _RedeemPageState extends State<RedeemPage> {
           );
         },
       ),
+        Positioned.fill(
+        child: AbsorbPointer(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(
+              sigmaX: 12,
+              sigmaY: 12,
+            ),
+            child: Container(
+              color: Colors.black.withOpacity(0.55),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.lock_clock,
+                      size: 90,
+                      color: Colors.white,
+                    ),
+                    SizedBox(height: 20),
+                    Text(
+                      "COMING SOON",
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 34,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      "Reward redemption is not yet available.",
+                      style: GoogleFonts.poppins(
+                        color: Colors.white70,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+   ),
     );
   }
 }
@@ -400,66 +447,149 @@ class RewardCard extends StatelessWidget {
     required this.onRedeem,
   });
 
+  // Improved condition - you can adjust this logic later
+  bool get isComingSoon => reward.stock <= 0 || reward.stock == 9999; // 9999 = temp test flag
+
   @override
   Widget build(BuildContext context) {
-    final canRedeem = currentPoints >= reward.pointsRequired && reward.stock > 0;
+    final canRedeem = currentPoints >= reward.pointsRequired && !isComingSoon;
 
-    return Card(
-      elevation: 3,
-      shadowColor: Colors.black12,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: reward.imageUrl.isNotEmpty
-                      ? Image.network(
-                          reward.imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: Colors.grey.shade200,
-                            child: const Icon(Icons.image_not_supported),
-                          ),
-                        )
-                      : Container(
-                          color: Colors.grey.shade200,
-                          child: const Icon(Icons.card_giftcard, size: 36),
-                        ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(reward.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87)),
-            const SizedBox(height: 6),
-            Text('⭐ ${reward.pointsRequired} pts', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.black87)),
-            const SizedBox(height: 4),
-            Text('Stock: ${reward.stock}', style: GoogleFonts.poppins(color: Colors.black54, fontSize: 12)),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-                child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: canRedeem ? AppTheme.accentAmber : Colors.grey,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+    return Stack(
+      children: [
+        // Main Card
+        Card(
+          elevation: 4,
+          shadowColor: Colors.black26,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: reward.imageUrl.isNotEmpty
+                          ? Image.network(
+                              reward.imageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: Colors.grey.shade200,
+                                child: const Icon(Icons.image_not_supported),
+                              ),
+                            )
+                          : Container(
+                              color: Colors.grey.shade200,
+                              child: const Icon(Icons.card_giftcard, size: 36),
+                            ),
+                    ),
                   ),
                 ),
-                onPressed: canRedeem ? onRedeem : null,
-                child: const Text('Redeem'),
+                const SizedBox(height: 10),
+                Text(
+                  reward.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '⭐ ${reward.pointsRequired} pts',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Stock: ${reward.stock}',
+                  style: GoogleFonts.poppins(color: Colors.black54, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: canRedeem
+                          ? AppTheme.accentAmber
+                          : Colors.grey.shade400,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: canRedeem ? 3 : 0,
+                    ),
+                    onPressed: canRedeem ? onRedeem : null,
+                    child: Text(isComingSoon ? 'Coming Soon' : 'Redeem'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // === STRONGER Glassmorphism Overlay ===
+        if (isComingSoon)
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12), // Stronger blur
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.35),        // Darker tint
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1.8,
+                    ),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.lock_rounded,
+                          color: Colors.white,
+                          size: 48,
+                          shadows: [
+                            Shadow(color: Colors.black.withOpacity(0.6), blurRadius: 10)
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Coming Soon',
+                          style: GoogleFonts.poppins(
+                            color: Colors.white,
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Stay tuned for this reward!',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            color: Colors.white70,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+      ],
     );
   }
 }

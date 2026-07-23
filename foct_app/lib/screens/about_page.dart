@@ -78,8 +78,7 @@ class _AboutPageState extends State<AboutPage> {
                 child: Image.asset('assets/logo1.png', width: 100, errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 80)),
               ),
               const SizedBox(height: 25),
-              Text("Yes Free WiFi", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryPurple)),
-              const SizedBox(height: 10),
+             
               Text(
                 "Yes Free WiFi is a smart advertising platform where users earn points by engaging with ads and redeem them for exciting rewards.\n\nBoost visibility. Earn rewards. Grow together.",
                 textAlign: TextAlign.center,
