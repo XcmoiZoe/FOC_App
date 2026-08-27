@@ -55,7 +55,10 @@ double _currentTurns = 0.0;
   final String hotspotApiUrl = "http://54.255.150.15/mobile-api/location";
 
   int earnedPoints = 0;
-
+// Toggle this to control the Rewards Store section only.
+// true  -> shows "Coming Soon" card
+// false -> shows the real "Rewards You Can Redeem" list
+bool isRewardsStoreComingSoon = false;
 void showComingSoonDialog(String feature) {
   showDialog(
     context: context,
@@ -1053,85 +1056,278 @@ setState(() {
 
            
 
-              // Suggested rewards - Coming Soon
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Rewards You Can Redeem',
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(32),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2A125A),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white24, width: 1.5),
-                      ),
-                      child: Column(
-                        children: [
-                          const Icon(
-                            Icons.card_giftcard,
-                            color: Colors.amber,
-                            size: 72,
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            "Rewards Store",
-                            style: GoogleFonts.poppins(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "Coming Soon",
-                            style: GoogleFonts.poppins(
-                              color: Colors.amber,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            "Exciting rewards are being prepared.\nRedeem your points very soon!",
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.poppins(
-                              color: Colors.white70,
-                              fontSize: 14.5,
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          ElevatedButton(
-                            onPressed: () => showComingSoonDialog("Rewards Store"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.amber,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            child: const Text(
-                              "Notify Me",
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+     // Suggested rewards / Rewards Store
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 16),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(
+        'Rewards You Can Redeem',
+        style: GoogleFonts.poppins(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      const SizedBox(height: 16),
+
+      // ==============================
+      // REWARDS STORE TOGGLE
+      // ==============================
+      if (isRewardsStoreComingSoon)
+        Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2A125A),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.white24,
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            children: [
+              const Icon(
+                Icons.card_giftcard,
+                color: Colors.amber,
+                size: 72,
+              ),
+              const SizedBox(height: 20),
+
+              Text(
+                "Rewards Store",
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+
+              const SizedBox(height: 8),
+
+              Text(
+                "Coming Soon",
+                style: GoogleFonts.poppins(
+                  color: Colors.amber,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              Text(
+                "Exciting rewards are being prepared.\n"
+                "Redeem your points very soon!",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  color: Colors.white70,
+                  fontSize: 14.5,
+                  height: 1.4,
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              ElevatedButton(
+                onPressed: () =>
+                    showComingSoonDialog("Rewards Store"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: const Text(
+                  "Notify Me",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        )
+
+      // ==============================
+      // REAL REWARDS STORE
+      // ==============================
+      else
+        Column(
+          children: [
+            if (rewards.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(25),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A125A),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Center(
+                  child: Text(
+                    "No rewards available",
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              )
+            else
+              ...getSuggestedRewards().map((reward) {
+                final int rewardId =
+                    (reward['id'] as num).toInt();
+
+                final int pointsRequired =
+                    (reward['points_required'] as num).toInt();
+
+                final bool canRedeem =
+                    totalPoints >= pointsRequired;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A125A),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white24,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+ClipRRect(
+  borderRadius: BorderRadius.circular(15),
+  child: Image.network(
+    reward['image_url']?.toString() ?? '',
+    width: 55,
+    height: 55,
+    fit: BoxFit.cover,
+    loadingBuilder: (context, child, loadingProgress) {
+      if (loadingProgress == null) {
+        return child;
+      }
+
+      return Container(
+        width: 55,
+        height: 55,
+        color: Colors.white10,
+        child: const Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.amber,
+          ),
+        ),
+      );
+    },
+    errorBuilder: (context, error, stackTrace) {
+      return Container(
+        width: 55,
+        height: 55,
+        decoration: BoxDecoration(
+          color: Colors.amber.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: const Icon(
+          Icons.card_giftcard,
+          color: Colors.amber,
+          size: 30,
+        ),
+      );
+    },
+  ),
+),
+
+                      const SizedBox(width: 14),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              reward['title']?.toString() ??
+                                  'Reward',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+
+                            const SizedBox(height: 4),
+
+                            Text(
+                              reward['description']
+                                      ?.toString() ??
+                                  '',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+
+                            const SizedBox(height: 5),
+
+                            Text(
+                              '$pointsRequired points',
+                              style: GoogleFonts.poppins(
+                                color: Colors.amber,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(width: 8),
+
+                      ElevatedButton(
+                        onPressed: canRedeem
+                            ? () => redeemReward(rewardId)
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.black,
+                          disabledBackgroundColor:
+                              Colors.white12,
+                          disabledForegroundColor:
+                              Colors.white38,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          canRedeem ? 'Redeem' : 'Locked',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+    ],
+  ),
+),
 
               const SizedBox(height: 40),
 

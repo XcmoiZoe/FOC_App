@@ -348,48 +348,6 @@ class _RedeemPageState extends State<RedeemPage> {
           );
         },
       ),
-        Positioned.fill(
-        child: AbsorbPointer(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 12,
-              sigmaY: 12,
-            ),
-            child: Container(
-              color: Colors.black.withOpacity(0.55),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.lock_clock,
-                      size: 90,
-                      color: Colors.white,
-                    ),
-                    SizedBox(height: 20),
-                    Text(
-                      "COMING SOON",
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 34,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      "Reward redemption is not yet available.",
-                      style: GoogleFonts.poppins(
-                        color: Colors.white70,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
     ],
    ),
     );
@@ -536,59 +494,8 @@ class RewardCard extends StatelessWidget {
           ),
         ),
 
-        // === STRONGER Glassmorphism Overlay ===
-        if (isComingSoon)
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12), // Stronger blur
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.35),        // Darker tint
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 1.8,
-                    ),
-                  ),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.lock_rounded,
-                          color: Colors.white,
-                          size: 48,
-                          shadows: [
-                            Shadow(color: Colors.black.withOpacity(0.6), blurRadius: 10)
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Coming Soon',
-                          style: GoogleFonts.poppins(
-                            color: Colors.white,
-                            fontSize: 19,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Stay tuned for this reward!',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
-                            color: Colors.white70,
-                            fontSize: 13.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+  
+    
       ],
     );
   }
