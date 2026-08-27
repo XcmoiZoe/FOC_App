@@ -10,6 +10,9 @@ import 'package:flutter/foundation.dart';
 import '../screens/about_page.dart';
 import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
+import 'redeem_page.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 String formatActivityClaimDate(DateTime date) {
   return '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -40,6 +43,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int recentPoints = 0;
   int activityCount = 0;
   List<dynamic> rewards = [];
+
+  // Survey
+  List<dynamic> surveyQuestions = [];
+  Map<String, dynamic>? currentSurvey;
+  bool isSurveyLoading = false;
+  int? userId;
 late AnimationController _wheelController;
 late AnimationController _glowController;
 late AnimationController _bounceController;
@@ -107,10 +116,129 @@ void showComingSoonDialog(String feature) {
     ),
   );
 }
+Future<void> checkForAppUpdate() async {
+  try {
+    final packageInfo = await PackageInfo.fromPlatform();
 
-  @override
-  void initState() {
-    super.initState();
+    final currentVersion = packageInfo.version;
+
+    final response = await http.get(
+      Uri.parse(
+        'http://54.255.150.15/mobile-api/app-version',
+      ),
+    );
+
+    if (response.statusCode != 200) {
+      return;
+    }
+
+    final data = jsonDecode(response.body);
+
+    if (data['success'] != true) {
+      return;
+    }
+
+    final latestVersion = data['latest_version'] ?? '';
+    final minimumVersion = data['minimum_version'] ?? '';
+    final forceUpdate = data['force_update'] ?? false;
+
+    if (!_isVersionGreater(latestVersion, currentVersion)) {
+      return;
+    }
+
+    if (!mounted) return;
+
+    final isForced =
+        forceUpdate ||
+        _isVersionGreater(minimumVersion, currentVersion);
+
+    _showUpdateDialog(
+      data,
+      forceUpdate: isForced,
+    );
+  } catch (e) {
+    debugPrint('APP UPDATE CHECK ERROR: $e');
+  }
+}bool _isVersionGreater(String latest, String current) {
+  final latestParts = latest.split('.').map(int.parse).toList();
+  final currentParts = current.split('.').map(int.parse).toList();
+
+  for (int i = 0; i < 3; i++) {
+    final latestValue =
+        i < latestParts.length ? latestParts[i] : 0;
+
+    final currentValue =
+        i < currentParts.length ? currentParts[i] : 0;
+
+    if (latestValue > currentValue) {
+      return true;
+    }
+
+    if (latestValue < currentValue) {
+      return false;
+    }
+  }
+
+  return false;
+}void _showUpdateDialog(
+  Map<String, dynamic> data, {
+  required bool forceUpdate,
+}) {
+  showDialog(
+    context: context,
+    barrierDismissible: !forceUpdate,
+    builder: (context) {
+      return PopScope(
+        canPop: !forceUpdate,
+        child: AlertDialog(
+          title: Text(
+            data['title'] ?? 'New Update Available',
+          ),
+          content: Text(
+            data['message'] ??
+                'A new version of YES! Free WiFi is available.',
+          ),
+          actions: [
+            if (!forceUpdate)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text('Later'),
+              ),
+
+            ElevatedButton(
+              onPressed: () async {
+                final url = Theme.of(context).platform ==
+                        TargetPlatform.iOS
+                    ? data['ios_url']
+                    : data['android_url'];
+
+                if (url == null || url.toString().isEmpty) {
+                  return;
+                }
+
+                await launchUrl(
+                  Uri.parse(url),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
+              child: const Text('Update Now'),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}@override
+void initState() {
+  super.initState();
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    checkForAppUpdate();
+  });
+
+ 
 _wheelController = AnimationController(
   vsync: this,
   duration: const Duration(milliseconds: 4500),
@@ -599,6 +727,9 @@ setState(() {
           userName = user['name'] ?? 'Member';
           memberCode = user['member_code'] ?? '';
           totalPoints = (user['total_points'] ?? 0).toInt();
+          userId = user['id'] is num
+              ? (user['id'] as num).toInt()
+              : int.tryParse(user['id']?.toString() ?? '');
         });
 
         final lastRouletteStr = user['last_roulette_at']?.toString();
@@ -624,6 +755,711 @@ setState(() {
     } catch (e) {
       debugPrint('Profile Load Error: $e');
     }
+  }
+
+Future<void> loadSurvey() async {
+  if (isSurveyLoading) return;
+
+  setState(() {
+    isSurveyLoading = true;
+  });
+
+  try {
+    final prefs = await SharedPreferences.getInstance();
+
+    final token = prefs.getString('token');
+
+    if (token == null || token.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Your session has expired. Please login again.',
+            ),
+          ),
+        );
+      }
+
+      return;
+    }
+
+    final response = await http.get(
+      Uri.parse(
+        'http://54.255.150.15/mobile-api/survey',
+      ),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    debugPrint(
+      'SURVEY STATUS: ${response.statusCode}',
+    );
+
+    debugPrint(
+      'SURVEY RESPONSE: ${response.body}',
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 &&
+        data['success'] == true) {
+      setState(() {
+        currentSurvey = data['survey'];
+        surveyQuestions = data['questions'] ?? [];
+      });
+
+      if (mounted && surveyQuestions.isNotEmpty) {
+        showSurveyDialog();
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              data['message'] ??
+                  'No new survey available.',
+            ),
+          ),
+        );
+      }
+    }
+  } catch (e) {
+    debugPrint(
+      'Survey Load Error: $e',
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to load survey: $e',
+          ),
+        ),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() {
+        isSurveyLoading = false;
+      });
+    }
+  }
+}
+
+  void showSurveyDialog() {
+    if (surveyQuestions.isEmpty) return;
+
+    int currentQuestion = 0;
+    final Map<int, String> answers = {};
+    final Map<int, TextEditingController> otherControllers = {};
+
+    for (final item in surveyQuestions) {
+      final id = int.tryParse(item['id'].toString());
+      if (id != null) {
+        otherControllers[id] = TextEditingController();
+      }
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final question = surveyQuestions[currentQuestion];
+            final int questionId =
+                int.tryParse(question['id'].toString()) ?? 0;
+            final String questionText =
+                question['question']?.toString() ?? '';
+            final String questionType =
+                question['question_type']?.toString() ?? 'single';
+
+            List<dynamic> options = [];
+            final rawOptions = question['options'];
+
+            try {
+              if (rawOptions is List) {
+                options = rawOptions;
+              } else if (rawOptions is String && rawOptions.isNotEmpty) {
+                final decoded = jsonDecode(rawOptions);
+                if (decoded is List) options = decoded;
+              }
+            } catch (e) {
+              debugPrint('Survey options parse error: $e');
+            }
+
+            final selectedAnswer = answers[questionId];
+            final bool isOtherSelected = selectedAnswer == 'Other';
+            final bool isLast =
+                currentQuestion == surveyQuestions.length - 1;
+
+            final bool hasAnswer =
+                selectedAnswer != null &&
+                selectedAnswer.trim().isNotEmpty &&
+                (!isOtherSelected ||
+                    (otherControllers[questionId]?.text.trim().isNotEmpty ??
+                        false));
+
+            // Fixed dialog height. Only the question/options area scrolls.
+            final double screenHeight = MediaQuery.of(context).size.height;
+            final double dialogHeight =
+                (screenHeight * 0.84).clamp(520.0, 720.0).toDouble();
+
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: dialogHeight,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(22, 16, 22, 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF24104F),
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.max,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // HEADER - fixed
+                      SizedBox(
+                        height: 48,
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.assignment,
+                              color: Colors.amber,
+                              size: 28,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                currentSurvey?['title']?.toString() ??
+                                    'YES! Free WiFi Survey',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 40,
+                                minHeight: 40,
+                              ),
+                              onPressed: () {
+                                for (final controller
+                                    in otherControllers.values) {
+                                  controller.dispose();
+                                }
+                                Navigator.pop(dialogContext);
+                              },
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 4),
+
+                      // PROGRESS - fixed
+                      Text(
+                        'Question ${currentQuestion + 1} of ${surveyQuestions.length}',
+                        style: GoogleFonts.poppins(
+                          color: Colors.amber,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: LinearProgressIndicator(
+                          minHeight: 5,
+                          value: (currentQuestion + 1) /
+                              surveyQuestions.length,
+                          backgroundColor: Colors.white12,
+                          valueColor:
+                              const AlwaysStoppedAnimation<Color>(
+                            Colors.amber,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // QUESTION + OPTIONS - scrollable
+                      Expanded(
+                        child: Scrollbar(
+                          thumbVisibility: true,
+                          child: SingleChildScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.only(
+                              right: 6,
+                              bottom: 12,
+                            ),
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  questionText,
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.35,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+
+                                if (questionType == 'text')
+                                  TextField(
+                                    controller:
+                                        otherControllers[questionId],
+                                    onChanged: (value) {
+                                      setDialogState(() {
+                                        answers[questionId] = value;
+                                      });
+                                    },
+                                    maxLines: 4,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: 'Type your answer...',
+                                      hintStyle: const TextStyle(
+                                        color: Colors.white54,
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.white10,
+                                      border: OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(14),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  ...options.map((option) {
+                                    final value = option.toString();
+                                    final selected =
+                                        selectedAnswer == value;
+
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 10,
+                                      ),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          borderRadius:
+                                              BorderRadius.circular(14),
+                                          onTap: () {
+                                            setDialogState(() {
+                                              answers[questionId] = value;
+                                            });
+                                          },
+                                          child: Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets
+                                                .symmetric(
+                                              horizontal: 14,
+                                              vertical: 13,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: selected
+                                                  ? Colors.amber
+                                                      .withOpacity(0.18)
+                                                  : Colors.white10,
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                              border: Border.all(
+                                                color: selected
+                                                    ? Colors.amber
+                                                    : Colors.white24,
+                                                width: selected ? 1.5 : 1,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  selected
+                                                      ? Icons
+                                                          .radio_button_checked
+                                                      : Icons
+                                                          .radio_button_off,
+                                                  color: selected
+                                                      ? Colors.amber
+                                                      : Colors.white54,
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: Text(
+                                                    value,
+                                                    style:
+                                                        GoogleFonts.poppins(
+                                                      color: Colors.white,
+                                                      fontSize: 13.5,
+                                                      fontWeight: selected
+                                                          ? FontWeight.w600
+                                                          : FontWeight.w400,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+
+                                if (isOtherSelected) ...[
+                                  const SizedBox(height: 2),
+                                  TextField(
+                                    controller:
+                                        otherControllers[questionId],
+                                    onChanged: (value) {
+                                      setDialogState(() {});
+                                    },
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: 'Please specify...',
+                                      hintStyle: const TextStyle(
+                                        color: Colors.white54,
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.white10,
+                                      border: OutlineInputBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(14),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // BUTTONS - fixed and never part of the scroll view
+                      SafeArea(
+                        top: false,
+                        child: Row(
+                          children: [
+                            if (currentQuestion > 0)
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    setDialogState(() {
+                                      currentQuestion--;
+                                    });
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    side: const BorderSide(
+                                      color: Colors.white30,
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                  child: const Text('Back'),
+                                ),
+                              ),
+                            if (currentQuestion > 0)
+                              const SizedBox(width: 10),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: hasAnswer
+                                    ? () async {
+                                        if (isOtherSelected) {
+                                          answers[questionId] =
+                                              'Other: ${otherControllers[questionId]!.text.trim()}';
+                                        }
+
+                                        if (!isLast) {
+                                          setDialogState(() {
+                                            currentQuestion++;
+                                          });
+                                        } else {
+                                          Navigator.pop(dialogContext);
+
+                                          for (final controller
+                                              in otherControllers.values) {
+                                            controller.dispose();
+                                          }
+
+                                          await submitSurvey(answers);
+                                        }
+                                      }
+                                    : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.amber,
+                                  foregroundColor: Colors.black,
+                                  disabledBackgroundColor: Colors.white12,
+                                  disabledForegroundColor: Colors.white38,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(14),
+                                  ),
+                                ),
+                                child: Text(
+                                  isLast ? 'Submit Survey' : 'Next',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> submitSurvey(
+    Map<int, String> answers,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      if (token == null || token.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Your session has expired. Please login again.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      final surveyId = currentSurvey?['id'];
+      if (surveyId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Survey information is missing.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      final Map<String, String> formattedAnswers = {};
+
+      answers.forEach((key, value) {
+        formattedAnswers[key.toString()] = value;
+      });
+
+      final response = await http.post(
+        Uri.parse(
+          'http://54.255.150.15/mobile-api/survey/submit',
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'survey_id': surveyId,
+          'answers': formattedAnswers,
+        }),
+      );
+
+      debugPrint('SURVEY SUBMIT STATUS: ${response.statusCode}');
+      debugPrint('SURVEY SUBMIT RESPONSE: ${response.body}');
+
+      final data = jsonDecode(response.body);
+
+      if (data['success'] == true) {
+        final int points =
+            (data['points_earned'] as num?)?.toInt() ?? 0;
+
+        final int? apiTotalPoints =
+            (data['total_points'] as num?)?.toInt();
+
+        // Update the UI immediately using the total returned by the API.
+        if (mounted && apiTotalPoints != null) {
+          setState(() {
+            totalPoints = apiTotalPoints;
+          });
+        }
+
+        // Reload the actual user balance from the database.
+        await loadUser();
+        await loadRecentActivity();
+        await loadActivityCount();
+
+        if (mounted) {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => AlertDialog(
+              backgroundColor: const Color(0xFF24104F),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22),
+              ),
+              title: Row(
+                children: [
+                  const Icon(
+                    Icons.celebration,
+                    color: Colors.amber,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Survey Completed!',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              content: Text(
+                'Thank you for your feedback!\n\n'
+                'You earned $points point${points == 1 ? '' : 's'}.\n\n'
+                'Your new total is ${apiTotalPoints ?? totalPoints} points.',
+                style: GoogleFonts.poppins(
+                  color: Colors.white70,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(
+                      color: Colors.amber,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                data['message'] ??
+                    'Unable to submit survey.',
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Survey Submit Error: $e');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Survey submission failed: $e',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildRewardImage(dynamic reward) {
+    String imageUrl = reward['image_url']?.toString().trim() ?? '';
+
+    // Support an image_url that is still returned as a JSON array.
+    if (imageUrl.startsWith('[')) {
+      try {
+        final parsed = jsonDecode(imageUrl);
+        if (parsed is List && parsed.isNotEmpty) {
+          imageUrl = parsed.first.toString().trim();
+        }
+      } catch (_) {}
+    }
+
+    // Support relative paths from the API.
+    if (imageUrl.isNotEmpty && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+      imageUrl = 'http://54.255.150.15/${imageUrl.replaceFirst(RegExp(r'^/+'), '')}';
+    }
+
+    if (imageUrl.isEmpty) {
+      return const Center(
+        child: Icon(
+          Icons.card_giftcard,
+          color: Colors.amber,
+          size: 30,
+        ),
+      );
+    }
+
+    return Image.network(
+      imageUrl,
+      width: 55,
+      height: 55,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return const Center(
+          child: Icon(
+            Icons.card_giftcard,
+            color: Colors.amber,
+            size: 30,
+          ),
+        );
+      },
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return const Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> loadRewards() async {
@@ -948,8 +1784,8 @@ setState(() {
                       _activityTile(
                         icon: Icons.calendar_today,
                         label: 'Survey Challenge',
-                        points: 'Soon',
-                          onTap: () => showComingSoonDialog('Survey Challenge'),
+                        points: isSurveyLoading ? 'Loading...' : '+5 pts',
+                        onTap: isSurveyLoading ? () {} : loadSurvey,
                       ),
                       _activityTile(
                         icon: Icons.play_circle_fill,
@@ -976,20 +1812,60 @@ setState(() {
 
               const SizedBox(height: 16),
 
-              // Redeem CTA
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(color: const Color(0xFF4A2490), borderRadius: BorderRadius.circular(24)),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    Text('Redeem your points for exciting rewards!', style: GoogleFonts.poppins(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 20),
-                    SizedBox(height: 52, child: ElevatedButton(onPressed: () => Navigator.pushNamed(context, '/redeem'), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFC107), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), child: Text('Redeem Now', style: GoogleFonts.poppins(color: const Color(0xFF4C1D95), fontWeight: FontWeight.bold)))),
-                  ]),
-                ),
-              ),
+         // Redeem CTA
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 16),
+  child: Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: const Color(0xFF4A2490),
+      borderRadius: BorderRadius.circular(24),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Redeem your points for exciting rewards!',
+          style: GoogleFonts.poppins(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
 
+        const SizedBox(height: 20),
+
+        SizedBox(
+          height: 52,
+          child: ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => RedeemPage(
+                    memberCode: memberCode,
+                  ),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFC107),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Text(
+              'Redeem Now',
+              style: GoogleFonts.poppins(
+                color: const Color(0xFF4C1D95),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  ),
+),
               const SizedBox(height: 16),
 
               // Hotspots
@@ -1202,47 +2078,15 @@ Padding(
                   ),
                   child: Row(
                     children: [
-ClipRRect(
-  borderRadius: BorderRadius.circular(15),
-  child: Image.network(
-    reward['image_url']?.toString() ?? '',
-    width: 55,
-    height: 55,
-    fit: BoxFit.cover,
-    loadingBuilder: (context, child, loadingProgress) {
-      if (loadingProgress == null) {
-        return child;
-      }
-
-      return Container(
-        width: 55,
-        height: 55,
-        color: Colors.white10,
-        child: const Center(
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Colors.amber,
-          ),
-        ),
-      );
-    },
-    errorBuilder: (context, error, stackTrace) {
-      return Container(
-        width: 55,
-        height: 55,
-        decoration: BoxDecoration(
-          color: Colors.amber.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: const Icon(
-          Icons.card_giftcard,
-          color: Colors.amber,
-          size: 30,
-        ),
-      );
-    },
-  ),
-),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(15),
+                        child: Container(
+                          width: 55,
+                          height: 55,
+                          color: Colors.amber.withOpacity(0.15),
+                          child: _buildRewardImage(reward),
+                        ),
+                      ),
 
                       const SizedBox(width: 14),
 
