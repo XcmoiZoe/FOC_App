@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import 'redeem_page.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 
 String formatActivityClaimDate(DateTime date) {
   return '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -37,10 +38,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final Map<int, bool> expandedRewards = {};
   String userName = "Member";
   String memberCode = "";
-  int totalPoints = 0;
+  double totalPoints = 0.0;
   String recentTitle = "No rewards yet";
   String recentDescription = "SPIN TO EARN POINTS";
-  int recentPoints = 0;
+  double recentPoints = 0.0;
   int activityCount = 0;
   List<dynamic> rewards = [];
 
@@ -303,6 +304,13 @@ void dispose() {
   super.dispose();
 }
 
+  String _formatPoints(double value) {
+    if (value == value.roundToDouble()) {
+      return NumberFormat('#,##0').format(value);
+    }
+    return NumberFormat('#,##0.00').format(value);
+  }
+
   Map<String, dynamic>? getNextReward() {
     if (rewards.isEmpty) return null;
 
@@ -370,7 +378,7 @@ double getTurnsForIndex(int index, {int extraSpins = 6}) {
       }
 
       final reward = data['reward'];
-      final newTotal = (data['total_points'] as num).toInt();
+      final newTotal = (data['total_points'] as num).toDouble();
       final selectedIndex = getTargetIndex(reward);
 
       // Calculate final position
@@ -697,12 +705,18 @@ setState(() {
                 ? const Center(child: Text("No activity found", style: TextStyle(fontSize: 16, color: Colors.grey)))
                 : ListView.builder(itemCount: activities.length, itemBuilder: (context, index) {
                     final item = activities[index];
-                    final points = item['points'] as int? ?? 0;
+                    final points = double.tryParse(item['points']?.toString() ?? '0') ?? 0.0;
                     return ListTile(
                       leading: CircleAvatar(backgroundColor: points >= 0 ? Colors.green : Colors.red, child: Icon(points >= 0 ? Icons.add : Icons.remove, color: Colors.white)),
                       title: Text(item['title'] ?? ''),
                       subtitle: Text(item['description'] ?? ''),
-                      trailing: Text("${points > 0 ? '+' : ''}$points", style: TextStyle(color: points > 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold)),
+                      trailing: Text(
+                        "${points > 0 ? '+' : ''}${points % 1 == 0 ? points.toStringAsFixed(0) : points.toStringAsFixed(2)}",
+                        style: TextStyle(
+                          color: points > 0 ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     );
                   }),
           ),
@@ -726,7 +740,7 @@ setState(() {
         setState(() {
           userName = user['name'] ?? 'Member';
           memberCode = user['member_code'] ?? '';
-          totalPoints = (user['total_points'] ?? 0).toInt();
+          totalPoints = double.tryParse(user['total_points']?.toString() ?? '0') ?? 0.0;
           userId = user['id'] is num
               ? (user['id'] as num).toInt()
               : int.tryParse(user['id']?.toString() ?? '');
@@ -1316,8 +1330,8 @@ Future<void> loadSurvey() async {
         final int points =
             (data['points_earned'] as num?)?.toInt() ?? 0;
 
-        final int? apiTotalPoints =
-            (data['total_points'] as num?)?.toInt();
+        final double? apiTotalPoints =
+            (data['total_points'] as num?)?.toDouble();
 
         // Update the UI immediately using the total returned by the API.
         if (mounted && apiTotalPoints != null) {
@@ -1520,7 +1534,7 @@ Future<void> loadSurvey() async {
         setState(() {
           recentTitle = activity['title'] ?? '';
           recentDescription = activity['description'] ?? '';
-          recentPoints = activity['points'] ?? 0;
+          recentPoints = double.tryParse(activity['points']?.toString() ?? '0') ?? 0.0;
         });
       }
     } catch (e) {
@@ -1598,44 +1612,150 @@ Future<void> loadSurvey() async {
       }
     }
   }
+Future<void> watchVideo() async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
 
-  Future<void> watchVideo() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+  if (token == null || token.isEmpty) {
+    return;
+  }
 
-    if (token == null || token.isEmpty) return;
+  try {
+    final response = await http.get(
+      Uri.parse(
+        'http://54.255.150.15/mobile-api/watch-video',
+      ),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
 
-    if (!await _canClaimActivityToday('watch_video')) {
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode != 200 ||
+        data['success'] != true) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Video reward already claimed today.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              data['message'] ??
+                  'Unable to load video.',
+            ),
+          ),
+        );
       }
       return;
     }
 
-    try {
-      final response = await http.post(
-        Uri.parse('http://54.255.150.15/mobile-api/watch-video'),
-        headers: {'Authorization': 'Bearer $token'},
+    if (data['available'] != true ||
+        data['ad'] == null) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text(
+              'No More Videos',
+              style: TextStyle(
+                color: Color(0xFF6C2BD9),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: const Text(
+              'You have watched all available videos for today. Come back tomorrow for more videos.',
+              style: TextStyle(
+                color: Color(0xFF6C2BD9),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(
+                    color: Color(0xFF6C2BD9),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
+    final ad = Map<String, dynamic>.from(
+      data['ad'],
+    );
+
+    if (!mounted) return;
+
+    await _showTapAdVideo(
+      token: token,
+      ad: ad,
+    );
+  } catch (e) {
+    debugPrint('Watch Video Error: $e');
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to load advertisement.',
+          ),
+        ),
       );
-
-      final data = jsonDecode(response.body);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Video reward processed')));
-      }
-
-      if (data['success'] == true) {
-        await _markActivityClaimed('watch_video');
-        await loadUser();
-        await loadRecentActivity();
-        await loadActivityCount();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Video reward failed: $e')));
-      }
     }
   }
+}Future<void> _showTapAdVideo({
+  required String token,
+  required Map<String, dynamic> ad,
+}) async {
+  String videoUrl = ad['video_url']?.toString().trim() ?? '';
+
+  if (videoUrl.isEmpty) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Video is unavailable.')),
+      );
+    }
+    return;
+  }
+
+  if (videoUrl.startsWith('/')) {
+    videoUrl = 'http://54.255.150.15$videoUrl';
+  }
+
+  final adId = int.tryParse(ad['id'].toString());
+  if (adId == null) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid advertisement.')),
+      );
+    }
+    return;
+  }
+
+  if (!mounted) return;
+
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => TapAdVideoPage(
+        token: token,
+        ad: ad,
+        adId: adId,
+        videoUrl: videoUrl,
+        onRewarded: () async {
+          await loadUser();
+          await loadRecentActivity();
+          await loadActivityCount();
+        },
+      ),
+    ),
+  );
+}
 
   Future<void> inviteFriend() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1744,7 +1864,7 @@ Future<void> loadSurvey() async {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text('My Points', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 18)),
                       const SizedBox(height: 10),
-                      Text(NumberFormat('#,###').format(totalPoints), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 36)),
+                      Text(_formatPoints(totalPoints), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 36)),
                       const SizedBox(height: 4),
                       const Text('PTS', style: TextStyle(color: Colors.white70, fontSize: 13)),
                       const SizedBox(height: 18),
@@ -1787,12 +1907,12 @@ Future<void> loadSurvey() async {
                         points: isSurveyLoading ? 'Loading...' : '+5 pts',
                         onTap: isSurveyLoading ? () {} : loadSurvey,
                       ),
-                      _activityTile(
-                        icon: Icons.play_circle_fill,
-                        label: 'Watch Video',
-                        points: 'Soon',
-                        onTap: () => showComingSoonDialog('Watch Video'),
-                      ),
+                                  _activityTile(
+              icon: Icons.play_circle_fill,
+              label: 'Watch Video',
+              points: '+0.20 pts',
+              onTap: watchVideo,
+            ),
                       _activityTile(
                         icon: Icons.autorenew,
                         label: 'Lucky Spin',
@@ -2212,6 +2332,628 @@ Widget _activityTile({
       ),
     ),
   );
+}
+
+class TapAdVideoPage extends StatefulWidget {
+  final String token;
+  final Map<String, dynamic> ad;
+  final int adId;
+  final String videoUrl;
+  final Future<void> Function() onRewarded;
+
+  const TapAdVideoPage({
+    super.key,
+    required this.token,
+    required this.ad,
+    required this.adId,
+    required this.videoUrl,
+    required this.onRewarded,
+  });
+
+  @override
+  State<TapAdVideoPage> createState() => _TapAdVideoPageState();
+}
+class _TapAdVideoPageState extends State<TapAdVideoPage>
+    with WidgetsBindingObserver {
+  late final VideoPlayerController _controller;
+
+  bool _initialized = false;
+  bool _completed = false;
+  bool _rewardProcessing = false;
+  bool _rewardSuccess = false;
+  bool _rewardFailed = false;
+  bool _showLearnMore = false;
+  bool _loadingReward = false;
+  String? _videoError;
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addObserver(this);
+
+    String resolvedVideoUrl = widget.videoUrl.trim();
+
+    if (resolvedVideoUrl.isEmpty) {
+      _videoError = 'Video URL is empty.';
+      return;
+    }
+
+    // Convert /uploads/... into the EC2 URL.
+    if (resolvedVideoUrl.startsWith('/')) {
+      resolvedVideoUrl =
+          'http://54.255.150.15$resolvedVideoUrl';
+    } else if (!resolvedVideoUrl.startsWith('http://') &&
+        !resolvedVideoUrl.startsWith('https://')) {
+      resolvedVideoUrl =
+          'http://54.255.150.15/uploads/$resolvedVideoUrl';
+    }
+
+    debugPrint(
+      'WATCH VIDEO URL: $resolvedVideoUrl',
+    );
+
+    final uri = Uri.tryParse(resolvedVideoUrl);
+
+    if (uri == null ||
+        (uri.scheme != 'http' &&
+            uri.scheme != 'https')) {
+      _videoError = 'Invalid video URL.';
+      return;
+    }
+
+    // IMPORTANT:
+    // Initialize the STATE controller BEFORE
+    // calling _initializeVideo().
+    _controller =
+        VideoPlayerController.networkUrl(uri);
+
+    _initializeVideo();
+  }
+
+  Future<void> _initializeVideo() async {
+    try {
+      await _controller.initialize();
+
+      if (!mounted) return;
+
+      _controller.setLooping(false);
+      _controller.setVolume(1.0);
+
+      _controller.addListener(_videoListener);
+
+      setState(() {
+        _initialized = true;
+        _videoError = null;
+      });
+
+      await _controller.play();
+    } catch (e) {
+      debugPrint(
+        'WATCH VIDEO INITIALIZE ERROR: $e',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _videoError =
+            'Unable to load this video.';
+      });
+    }
+  }
+
+  void _videoListener() {
+    if (!_controller.value.isInitialized ||
+        _completed ||
+        _rewardProcessing) {
+      return;
+    }
+
+    final value = _controller.value;
+    final duration = value.duration;
+    final position = value.position;
+
+    if (duration <= Duration.zero) {
+      return;
+    }
+
+    if (position >= duration) {
+      _completeVideo();
+    }
+  }
+  Future<void> _completeVideo() async {
+    if (_rewardProcessing || _completed) return;
+
+    setState(() {
+      _rewardProcessing = true;
+      _loadingReward = true;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse(
+          'http://54.255.150.15/mobile-api/watch-video',
+        ),
+        headers: {
+          'Authorization': 'Bearer ${widget.token}',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'ad_id': widget.adId,
+        }),
+      );
+
+      Map<String, dynamic> result = {};
+
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          result = decoded;
+        }
+      } catch (_) {
+        // Handled below as a failed reward response.
+      }
+
+      if (response.statusCode == 200 && result['success'] == true) {
+        if (!mounted) return;
+
+        setState(() {
+          _completed = true;
+          _rewardSuccess = true;
+          _rewardFailed = false;
+          _rewardProcessing = false;
+          _loadingReward = false;
+          _showLearnMore =
+              widget.ad['learn_more_url']?.toString().trim().isNotEmpty == true;
+        });
+
+        await widget.onRewarded();
+      } else if (response.statusCode == 409) {
+        if (!mounted) return;
+
+        setState(() {
+          _completed = true;
+          _rewardSuccess = false;
+          _rewardFailed = true;
+          _rewardProcessing = false;
+          _loadingReward = false;
+        });
+      } else {
+        if (!mounted) return;
+
+        setState(() {
+          _rewardSuccess = false;
+          _rewardFailed = true;
+          _rewardProcessing = false;
+          _loadingReward = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('WATCH VIDEO REWARD ERROR: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _rewardSuccess = false;
+        _rewardFailed = true;
+        _rewardProcessing = false;
+        _loadingReward = false;
+      });
+    }
+  }
+
+  Future<void> _openLearnMore() async {
+    final rawUrl = widget.ad['learn_more_url']?.toString().trim() ?? '';
+    if (rawUrl.isEmpty) return;
+
+    final uri = Uri.tryParse(rawUrl);
+    if (uri == null || !uri.hasScheme) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid Learn More link.')),
+      );
+      return;
+    }
+
+    try {
+      final opened = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to open the link.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('LEARN MORE ERROR: $e');
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_initialized || _completed) return;
+
+    if (state == AppLifecycleState.resumed) {
+      // Resume automatically when the user returns to the app.
+      if (!_controller.value.isPlaying &&
+          _controller.value.position < _controller.value.duration) {
+        _controller.play();
+      }
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _controller.pause();
+    }
+  }
+
+  double get _progress {
+    if (!_controller.value.isInitialized) return 0.0;
+
+    final duration = _controller.value.duration.inMilliseconds;
+    final position = _controller.value.position.inMilliseconds;
+
+    if (duration <= 0) return 0.0;
+
+    return (position / duration).clamp(0.0, 1.0);
+  }
+
+  String get _remainingText {
+    if (!_controller.value.isInitialized) return '';
+
+    final remaining =
+        _controller.value.duration - _controller.value.position;
+
+    if (remaining.isNegative) return '0:00';
+
+    final seconds = remaining.inSeconds;
+    final minutes = seconds ~/ 60;
+    final secs = seconds % 60;
+
+    return '$minutes:${secs.toString().padLeft(2, '0')}';
+  }
+
+  @override
+void dispose() {
+  WidgetsBinding.instance.removeObserver(this);
+
+  final controller = _controller;
+
+  if (controller != null) {
+    controller.removeListener(_videoListener);
+    controller.dispose();
+  }
+
+  super.dispose();
+}
+  @override
+  Widget build(BuildContext context) {
+    final adName = widget.ad['ad_name']?.toString().trim().isNotEmpty == true
+        ? widget.ad['ad_name'].toString()
+        : 'Advertisement';
+
+    final learnMoreText =
+        widget.ad['learn_more_text']?.toString().trim().isNotEmpty == true
+            ? widget.ad['learn_more_text'].toString()
+            : 'Visit Site';
+
+    final rawLearnMoreUrl =
+        widget.ad['learn_more_url']?.toString().trim() ?? '';
+    final hasLearnMore = rawLearnMoreUrl.isNotEmpty;
+
+    return PopScope(
+      canPop: _completed || _rewardFailed || _videoError != null,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          centerTitle: true,
+          title: Text(
+            adName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          actions: [
+            if (_completed || _rewardFailed || _videoError != null)
+              IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close),
+              ),
+          ],
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // The video uses the remaining screen space and preserves its
+              // native aspect ratio. Portrait and landscape both work.
+              Expanded(
+                child: _videoError != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: Colors.white70,
+                                size: 56,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _videoError!,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              ElevatedButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('CLOSE'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : !_initialized
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              final size = _controller.value.size;
+                              final ratio = size.width > 0 && size.height > 0
+                                  ? size.width / size.height
+                                  : 16 / 9;
+
+                              double width = constraints.maxWidth;
+                              double height = width / ratio;
+
+                              if (height > constraints.maxHeight) {
+                                height = constraints.maxHeight;
+                                width = height * ratio;
+                              }
+
+                              return Center(
+                                child: SizedBox(
+                                  width: width,
+                                  height: height,
+                                  child: FittedBox(
+                                    fit: BoxFit.contain,
+                                    child: SizedBox(
+                                      width: size.width,
+                                      height: size.height,
+                                      child: VideoPlayer(_controller),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+              ),
+
+              // Always reserve space for the CTA. This prevents it from
+              // disappearing when the video is tall or the screen is short.
+              Container(
+                width: double.infinity,
+                color: Colors.black,
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F5F5),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: const Icon(
+                          Icons.campaign_outlined,
+                          color: Color(0xFF6C2BD9),
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Ad',
+                              style: GoogleFonts.poppins(
+                                color: Colors.black54,
+                                fontSize: 10,
+                              ),
+                            ),
+                            Text(
+                              adName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                color: Colors.black87,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: SizedBox(
+                          height: 50,
+                          child: ElevatedButton.icon(
+                            onPressed: hasLearnMore ? _openLearnMore : null,
+                            icon: const Icon(
+                              Icons.open_in_new,
+                              size: 19,
+                            ),
+                            label: Text(
+                              learnMoreText.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF4A4A4A),
+                              disabledBackgroundColor:
+                                  const Color(0xFF666666),
+                              foregroundColor: Colors.white,
+                              disabledForegroundColor: Colors.white70,
+                              minimumSize: const Size.fromHeight(50),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Progress stays at the very bottom. No seek/skip controls.
+              if (_initialized && !_completed && !_rewardFailed)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                  color: Colors.black,
+                  child: ValueListenableBuilder<VideoPlayerValue>(
+                    valueListenable: _controller,
+                    builder: (context, value, child) {
+                      return Column(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: _progress,
+                              minHeight: 6,
+                              backgroundColor: Colors.white24,
+                              valueColor:
+                                  const AlwaysStoppedAnimation<Color>(
+                                Color(0xFF8E5ABF),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Please watch until the end',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              Text(
+                                _remainingText,
+                                style: GoogleFonts.poppins(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+
+              if (_loadingReward)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  color: Colors.black,
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        'Processing reward...',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+
+              if (_rewardSuccess)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  color: Colors.black,
+                  child: Text(
+                    '+0.20 PTS EARNED',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      color: const Color(0xFFFFC107),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+
+              if (_rewardFailed)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                  color: Colors.black,
+                  child: Text(
+                    'Reward could not be processed.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _WheelPainter extends CustomPainter {

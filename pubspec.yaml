@@ -2,7 +2,7 @@ name: yes_free_wifi
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.0+8
+version: 1.0.2+11
 
 environment:
   sdk: ^3.11.4
@@ -24,6 +24,7 @@ dependencies:
   package_info_plus: 10.2.1
   share_plus: ^13.2.0
   flutter_svg: ^2.2.0
+  video_player: ^2.10.0
 
 dev_dependencies:
   flutter_test:

@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:ui';
 
 class RedeemPage extends StatefulWidget {
   final String memberCode;
@@ -20,27 +19,32 @@ class RedeemPage extends StatefulWidget {
 
 class _RedeemPageState extends State<RedeemPage> {
   static const String baseUrl = 'http://54.255.150.15/mobile-api';
-  // use centralized theme colors
 
   final TextEditingController searchController = TextEditingController();
+
   String selectedCategory = 'All';
+  String searchText = '';
 
   late Future<RewardResponse> rewardsFuture;
+
   List<Reward> allRewards = [];
   List<Reward> filteredRewards = [];
   List<String> categories = const ['All'];
-  String searchText = '';
-  int remainingPoints = 0;
+
+  double remainingPoints = 0.0;
   bool isRedeeming = false;
 
   @override
   void initState() {
     super.initState();
+
     rewardsFuture = fetchRewards();
+
     searchController.addListener(() {
       searchText = searchController.text;
       filterRewards();
     });
+
     fetchProfilePoints();
   }
 
@@ -50,50 +54,75 @@ class _RedeemPageState extends State<RedeemPage> {
     super.dispose();
   }
 
-  int _parsePoints(dynamic value) {
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value) ?? remainingPoints;
-    if (value is Map<String, dynamic>) {
-      final inner = value['remaining_points'] ??
-          value['remainingPoints'] ??
-          value['total_points'] ??
-          value['points'];
-      return _parsePoints(inner);
+  double _parsePoints(dynamic value) {
+    if (value is num) return value.toDouble();
+
+    if (value is String) {
+      return double.tryParse(value) ?? 0.0;
     }
-    return remainingPoints;
+
+    return 0.0;
   }
 
   Future<void> fetchProfilePoints() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
 
-    if (token == null || token.isEmpty) return;
-
-    final response = await http.post(
-      Uri.parse('$baseUrl/profile'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    if (response.statusCode != 200) return;
-
-    final Map<String, dynamic> data = jsonDecode(response.body);
-
-    if (data['success'] == true && data['user'] != null) {
-      final points = _parsePoints(data['user']['total_points']);
-      if (mounted) {
-        setState(() {
-          remainingPoints = points;
-        });
+      if (token == null || token.isEmpty) {
+        debugPrint('No token found');
+        return;
       }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/profile'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      debugPrint('Profile Status: ${response.statusCode}');
+      debugPrint('Profile Response: ${response.body}');
+
+      if (response.statusCode != 200) {
+        debugPrint('Profile request failed');
+        return;
+      }
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      if (data['success'] == true && data['user'] != null) {
+        final user = data['user'];
+
+        final points = _parsePoints(
+          user['total_points'] ??
+              user['points'] ??
+              user['remaining_points'] ??
+              0,
+        );
+
+        if (mounted) {
+          setState(() {
+            remainingPoints = points;
+          });
+        }
+
+        debugPrint('POINTS LOADED: $points');
+      } else {
+        debugPrint('Invalid profile response: $data');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Profile Points Error: $e');
+      debugPrintStack(stackTrace: stackTrace);
     }
   }
 
   Future<RewardResponse> fetchRewards() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/rewards?member_code=${widget.memberCode}'),
+      Uri.parse(
+        '$baseUrl/rewards?member_code=${Uri.encodeComponent(widget.memberCode)}',
+      ),
       headers: {'Content-Type': 'application/json'},
     );
 
@@ -107,8 +136,11 @@ class _RedeemPageState extends State<RedeemPage> {
       throw Exception(data['message'] ?? 'API returned failure');
     }
 
-    final rewardsJson = (data['rewards'] as List? ?? []);
-    final rewards = rewardsJson.map((item) => Reward.fromJson(item)).toList();
+    final rewardsJson = data['rewards'] as List? ?? [];
+
+    final rewards = rewardsJson
+        .map((item) => Reward.fromJson(item as Map<String, dynamic>))
+        .toList();
 
     final apiCategories =
         (data['categories'] as List?)?.map((e) => e.toString()).toList() ??
@@ -122,7 +154,11 @@ class _RedeemPageState extends State<RedeemPage> {
     }
 
     filteredRewards = List.from(allRewards);
-    return RewardResponse(rewards: rewards, categories: categories);
+
+    return RewardResponse(
+      rewards: rewards,
+      categories: categories,
+    );
   }
 
   void filterRewards() {
@@ -130,10 +166,13 @@ class _RedeemPageState extends State<RedeemPage> {
 
     setState(() {
       filteredRewards = allRewards.where((reward) {
-        final matchesSearch = reward.title.toLowerCase().contains(query) ||
-            reward.description.toLowerCase().contains(query);
+        final matchesSearch =
+            reward.title.toLowerCase().contains(query) ||
+                reward.description.toLowerCase().contains(query);
+
         final matchesCategory =
             selectedCategory == 'All' || reward.category == selectedCategory;
+
         return matchesSearch && matchesCategory;
       }).toList();
     });
@@ -145,11 +184,17 @@ class _RedeemPageState extends State<RedeemPage> {
     setState(() => isRedeeming = true);
 
     try {
+      final token = await _getToken();
+
+      if (token == null || token.isEmpty) {
+        throw Exception('No authentication token found');
+      }
+
       final response = await http.post(
         Uri.parse('$baseUrl/redeem'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${await _getToken()}',
+          'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
           'member_code': widget.memberCode,
@@ -160,41 +205,62 @@ class _RedeemPageState extends State<RedeemPage> {
       final Map<String, dynamic> data = jsonDecode(response.body);
 
       if (response.statusCode == 200 && data['success'] == true) {
-        final updatedPoints = _parsePoints(data['total_points']);
-
-        setState(() {
-          remainingPoints = updatedPoints;
-          rewardsFuture = fetchRewards();
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(data['message'] ?? 'Reward redeemed successfully'),
-            backgroundColor: Colors.green,
-          ),
+        final updatedPoints = _parsePoints(
+          data['total_points'] ??
+              data['remaining_points'] ??
+              data['points'] ??
+              remainingPoints,
         );
+
+        if (mounted) {
+          setState(() {
+            remainingPoints = updatedPoints;
+            rewardsFuture = fetchRewards();
+          });
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                data['message'] ?? 'Reward redeemed successfully',
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
 
         await fetchProfilePoints();
         await rewardsFuture;
 
-        if (mounted) filterRewards();
+        if (mounted) {
+          filterRewards();
+        }
       } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                data['message'] ?? 'Failed to redeem reward',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(data['message'] ?? 'Failed to redeem reward'),
+            content: Text('Redeem failed: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Redeem failed: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     } finally {
-      if (mounted) setState(() => isRedeeming = false);
+      if (mounted) {
+        setState(() => isRedeeming = false);
+      }
     }
   }
 
@@ -207,20 +273,27 @@ class _RedeemPageState extends State<RedeemPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Redeem Rewards', style: GoogleFonts.poppins(fontWeight: FontWeight.w700)),
+        title: Text(
+          'Redeem Rewards',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-   body: Stack(
-  children: [
-    FutureBuilder<RewardResponse>(
+      body: FutureBuilder<RewardResponse>(
         future: rewardsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(
+              child: Text('Error: ${snapshot.error}'),
+            );
           }
 
           final displayPoints = remainingPoints;
@@ -228,9 +301,11 @@ class _RedeemPageState extends State<RedeemPage> {
           return RefreshIndicator(
             onRefresh: () async {
               await fetchProfilePoints();
+
               setState(() {
                 rewardsFuture = fetchRewards();
               });
+
               await rewardsFuture;
               filterRewards();
             },
@@ -239,41 +314,59 @@ class _RedeemPageState extends State<RedeemPage> {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                      child: TextField(
-                        controller: searchController,
-                        style: GoogleFonts.poppins(color: Colors.black87),
-                        cursorColor: AppTheme.primaryPurple,
-                        decoration: InputDecoration(
-                          hintText: 'Search rewards...',
-                          prefixIcon: const Icon(Icons.search),
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    padding: const EdgeInsets.fromLTRB(
+                      16,
+                      16,
+                      16,
+                      12,
+                    ),
+                    child: TextField(
+                      controller: searchController,
+                      style: GoogleFonts.poppins(
+                        color: Colors.black87,
+                      ),
+                      cursorColor: AppTheme.primaryPurple,
+                      decoration: InputDecoration(
+                        hintText: 'Search rewards...',
+                        prefixIcon: const Icon(Icons.search),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding:
+                            const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
                         ),
                       ),
+                    ),
                   ),
                 ),
+
                 SliverToBoxAdapter(
                   child: SizedBox(
                     height: 48,
                     child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16),
                       scrollDirection: Axis.horizontal,
                       itemCount: categories.length,
                       itemBuilder: (_, index) {
                         final category = categories[index];
+
                         return Padding(
-                          padding: const EdgeInsets.only(right: 8),
+                          padding:
+                              const EdgeInsets.only(right: 8),
                           child: ChoiceChip(
                             label: Text(category),
-                            selected: selectedCategory == category,
+                            selected:
+                                selectedCategory == category,
                             onSelected: (_) {
-                              setState(() => selectedCategory = category);
+                              setState(() {
+                                selectedCategory = category;
+                              });
                               filterRewards();
                             },
                           ),
@@ -282,27 +375,40 @@ class _RedeemPageState extends State<RedeemPage> {
                     ),
                   ),
                 ),
+
                 SliverToBoxAdapter(
                   child: Container(
                     width: double.infinity,
-                    margin: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    margin: const EdgeInsets.fromLTRB(
+                      16,
+                      12,
+                      16,
+                      16,
+                    ),
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [AppTheme.primaryPurple, AppTheme.accentAmber],
+                        colors: [
+                          AppTheme.primaryPurple,
+                          AppTheme.accentAmber,
+                        ],
                       ),
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
                         const Text(
                           'You have',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          '$displayPoints Points',
+                          '${displayPoints.toStringAsFixed(displayPoints % 1 == 0 ? 0 : 2)} Points',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,
@@ -313,14 +419,18 @@ class _RedeemPageState extends State<RedeemPage> {
                     ),
                   ),
                 ),
+
                 if (filteredRewards.isEmpty)
                   const SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(child: Text('No rewards available')),
+                    child: Center(
+                      child: Text('No rewards available'),
+                    ),
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverGrid(
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
@@ -332,6 +442,7 @@ class _RedeemPageState extends State<RedeemPage> {
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
                           final reward = filteredRewards[index];
+
                           return RewardCard(
                             reward: reward,
                             currentPoints: displayPoints,
@@ -342,14 +453,15 @@ class _RedeemPageState extends State<RedeemPage> {
                       ),
                     ),
                   ),
-                const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 20),
+                ),
               ],
             ),
           );
         },
       ),
-    ],
-   ),
     );
   }
 }
@@ -358,7 +470,10 @@ class RewardResponse {
   final List<Reward> rewards;
   final List<String> categories;
 
-  RewardResponse({required this.rewards, required this.categories});
+  RewardResponse({
+    required this.rewards,
+    required this.categories,
+  });
 }
 
 class Reward {
@@ -367,7 +482,7 @@ class Reward {
   final String category;
   final String description;
   final String imageUrl;
-  final int pointsRequired;
+  final double pointsRequired;
   final int stock;
 
   Reward({
@@ -382,20 +497,29 @@ class Reward {
 
   factory Reward.fromJson(Map<String, dynamic> json) {
     return Reward(
-      id: json['id'] ?? 0,
-      title: json['title'] ?? '',
-      category: json['category'] ?? 'All',
-      description: json['description'] ?? '',
-      imageUrl: json['image_url'] ?? '',
-      pointsRequired: json['points_required'] ?? 0,
-      stock: json['stock'] ?? 0,
+      id: json['id'] is num
+          ? (json['id'] as num).toInt()
+          : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      title: json['title']?.toString() ?? '',
+      category: json['category']?.toString() ?? 'All',
+      description: json['description']?.toString() ?? '',
+      imageUrl: json['image_url']?.toString() ?? '',
+      pointsRequired: json['points_required'] is num
+          ? (json['points_required'] as num).toDouble()
+          : double.tryParse(
+                  json['points_required']?.toString() ?? '0',
+                ) ??
+              0.0,
+      stock: json['stock'] is num
+          ? (json['stock'] as num).toInt()
+          : int.tryParse(json['stock']?.toString() ?? '0') ?? 0,
     );
   }
 }
 
 class RewardCard extends StatelessWidget {
   final Reward reward;
-  final int currentPoints;
+  final double currentPoints;
   final VoidCallback onRedeem;
 
   const RewardCard({
@@ -405,98 +529,102 @@ class RewardCard extends StatelessWidget {
     required this.onRedeem,
   });
 
-  // Improved condition - you can adjust this logic later
-  bool get isComingSoon => reward.stock <= 0 || reward.stock == 9999; // 9999 = temp test flag
+  bool get isComingSoon =>
+      reward.stock <= 0 || reward.stock == 9999;
 
   @override
   Widget build(BuildContext context) {
-    final canRedeem = currentPoints >= reward.pointsRequired && !isComingSoon;
+    final canRedeem =
+        currentPoints >= reward.pointsRequired && !isComingSoon;
 
-    return Stack(
-      children: [
-        // Main Card
-        Card(
-          elevation: 4,
-          shadowColor: Colors.black26,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: AspectRatio(
-                      aspectRatio: 1,
-                      child: reward.imageUrl.isNotEmpty
-                          ? Image.network(
-                              reward.imageUrl,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
-                                color: Colors.grey.shade200,
-                                child: const Icon(Icons.image_not_supported),
-                              ),
-                            )
-                          : Container(
-                              color: Colors.grey.shade200,
-                              child: const Icon(Icons.card_giftcard, size: 36),
+    return Card(
+      elevation: 4,
+      shadowColor: Colors.black26,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: reward.imageUrl.isNotEmpty
+                      ? Image.network(
+                          reward.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              Container(
+                            color: Colors.grey.shade200,
+                            child: const Icon(
+                              Icons.image_not_supported,
                             ),
-                    ),
-                  ),
+                          ),
+                        )
+                      : Container(
+                          color: Colors.grey.shade200,
+                          child: const Icon(
+                            Icons.card_giftcard,
+                            size: 36,
+                          ),
+                        ),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  reward.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '⭐ ${reward.pointsRequired} pts',
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Stock: ${reward.stock}',
-                  style: GoogleFonts.poppins(color: Colors.black54, fontSize: 12),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: canRedeem
-                          ? AppTheme.accentAmber
-                          : Colors.grey.shade400,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: canRedeem ? 3 : 0,
-                    ),
-                    onPressed: canRedeem ? onRedeem : null,
-                    child: Text(isComingSoon ? 'Coming Soon' : 'Redeem'),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(height: 10),
+            Text(
+              reward.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '⭐ ${reward.pointsRequired.toStringAsFixed(reward.pointsRequired % 1 == 0 ? 0 : 2)} pts',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Stock: ${reward.stock}',
+              style: GoogleFonts.poppins(
+                color: Colors.black54,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: canRedeem
+                      ? AppTheme.accentAmber
+                      : Colors.grey.shade400,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: canRedeem ? 3 : 0,
+                ),
+                onPressed: canRedeem ? onRedeem : null,
+                child: Text(
+                  isComingSoon ? 'Coming Soon' : 'Redeem',
+                ),
+              ),
+            ),
+          ],
         ),
-
-  
-    
-      ],
+      ),
     );
   }
 }
